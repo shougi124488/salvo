@@ -1,0 +1,2615 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important} :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} img{max-width:100%}</style>
+<title>Salvo.io</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+/* Layout: full-screen sea chart canvas, HUD floats at the corners. Single dark theme by choice (night sea). */
+:root{
+  --sea:#0a2131; --sea-deep:#06141f; --panel:#0c2535; --line:rgba(143,195,214,.22);
+  --hull:#d9e0e5; --accent:#5fd6c3; --enemy:#d9644a;
+  --shell:#ffd27a; --danger:#ff5747; --ink:#e8f1f4; --muted:#87a6b3;
+  --f-num:"Chakra Petch", "Zen Kaku Gothic New", system-ui, sans-serif;
+  --f-jp:"Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--sea-deep);color:var(--ink);font-family:var(--f-jp)}
+body{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+#cv{position:fixed;inset:0;display:block;cursor:crosshair}
+.hud{position:fixed;pointer-events:none;z-index:2}
+#tl{top:calc(12px + env(safe-area-inset-top,0px));left:calc(14px + env(safe-area-inset-left,0px));display:grid;gap:6px;min-width:190px}
+.row{display:flex;align-items:baseline;gap:10px}
+.lbl{font-size:11px;letter-spacing:.12em;color:var(--muted)}
+.big{font-family:var(--f-num);font-weight:700;font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
+.mid{font-family:var(--f-num);font-weight:500;font-size:15px;font-variant-numeric:tabular-nums}
+#shipName{font-weight:700;font-size:13px;color:var(--accent);letter-spacing:.06em}
+#hpbar{height:7px;background:rgba(143,195,214,.15);border-radius:2px;overflow:hidden}
+#hpfill{height:100%;width:100%;background:var(--accent);transition:width .15s}
+#fuelbar{height:5px;background:rgba(143,195,214,.15);border-radius:2px;overflow:hidden}
+#fuelfill{height:100%;width:100%;background:var(--shell)}
+#boostRow[hidden]{display:none!important}
+#fieldbar{height:5px;background:rgba(143,195,214,.15);border-radius:2px;overflow:hidden}
+#fieldfill{height:100%;width:100%;background:#7fd0ff}
+
+#fireWrap{position:fixed;z-index:3;right:calc(20px + env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+#fireRow{display:flex;align-items:flex-end;gap:12px}
+.fbtn{position:relative;width:70px;height:70px;border-radius:50%;border:none;padding:0;background:radial-gradient(circle at 50% 40%,#173d50,#0b2434);color:var(--ink);font-family:var(--f-num);font-weight:700;font-size:13px;letter-spacing:.1em;cursor:pointer;box-shadow:0 0 0 2px rgba(143,195,214,.25) inset,0 6px 20px rgba(0,0,0,.45);touch-action:none}
+.fbtn.main{width:108px;height:108px;font-size:19px;letter-spacing:.14em}
+.fbtn:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.fbtn.ready{box-shadow:0 0 0 2px var(--accent) inset,0 0 22px rgba(95,214,195,.4)}
+.fbtn.held{transform:scale(.95)}
+.fbtn svg{position:absolute;left:-7px;top:-7px;width:calc(100% + 14px);height:calc(100% + 14px);transform:rotate(-90deg);pointer-events:none}
+.fbtn .sub{display:block;font-family:var(--f-jp);font-size:10px;letter-spacing:.06em;color:var(--muted);font-weight:500;margin-top:1px}
+.fbtn .key{position:absolute;left:50%;bottom:-17px;transform:translateX(-50%);font-size:9px;color:var(--muted);letter-spacing:.04em;white-space:nowrap;font-weight:500}
+#status{font-size:12px;letter-spacing:.08em;color:var(--muted);min-height:1em;text-shadow:0 1px 3px #000;margin-top:6px}
+
+.modeBtn{display:grid;grid-template-columns:auto auto;align-items:center;column-gap:10px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:rgba(6,20,31,.75);color:var(--ink);font-family:var(--f-jp);cursor:pointer;touch-action:none}
+.modeBtn .lbl{grid-column:1 / -1;font-size:10px;text-align:left}
+.modeBtn b{font-size:15px;letter-spacing:.06em}
+.modeBtn .k{font-family:var(--f-num);font-size:10px;color:var(--muted);justify-self:end}
+.modeBtn[aria-pressed="true"]{border-color:var(--shell);background:rgba(255,210,122,.12)}
+.modeBtn[aria-pressed="true"] b{color:var(--shell)}
+.modeBtn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.modeBtn:disabled{opacity:.35;cursor:default}
+.modeRow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+#atkBtn.drop{border-color:var(--danger);background:rgba(255,87,71,.2)}
+#atkBtn.drop b{color:var(--ink)}
+#airPanel{left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(64px + env(safe-area-inset-bottom,0px));display:grid;gap:3px;padding:8px 10px;border-radius:6px;background:rgba(6,20,31,.7);border:1px solid var(--line);font-size:12px;min-width:200px}
+#airPanel .sq{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:3px 0}
+#airPanel .sq b{font-weight:700}
+#airPanel .sq b small{font-weight:500;color:var(--muted);font-size:10px;margin-left:4px}
+#airPanel .sq.sel b{color:var(--accent)}
+#airPanel .sq span{color:var(--muted);font-variant-numeric:tabular-nums}
+#airPanel .sq .pl{grid-column:1 / -1;font-family:var(--f-num);letter-spacing:.12em;color:var(--ink)}
+#airPanel .head{font-size:10px;color:var(--muted);letter-spacing:.12em}
+@media (max-width:520px){#airPanel{min-width:0;font-size:11px;padding:6px 8px;top:calc(140px + env(safe-area-inset-top,0px));bottom:auto}#airPanel .sq{padding:1px 0}}
+#spreadBtn{min-width:84px}
+#lockBtn{min-width:84px;max-width:120px}
+#lockBtn b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:420px){.modeBtn{padding:6px 8px}.modeBtn b{font-size:13px}#spreadBtn,#lockBtn{min-width:0}}
+#spreadBtn[data-v="-1"] b{color:var(--accent)}
+#spreadBtn[data-v="1"] b{color:var(--enemy)}
+
+#hint{left:50%;transform:translateX(-50%);top:calc(14px + env(safe-area-inset-top,0px));font-size:12px;color:var(--muted);background:rgba(6,20,31,.6);padding:6px 12px;border-radius:4px;white-space:nowrap;transition:opacity 1s}
+#mini{position:fixed;z-index:2;top:calc(12px + env(safe-area-inset-top,0px));right:calc(14px + env(safe-area-inset-right,0px));width:130px;height:130px;border:1px solid var(--line);background:rgba(6,20,31,.55);pointer-events:none}
+
+.overlay{position:fixed;inset:0;z-index:5;background:rgba(4,14,22,.78);overflow:auto;touch-action:pan-y;user-select:auto;-webkit-user-select:auto}
+.overlay.center{display:grid;place-items:center;padding:16px}
+.card{display:grid;gap:16px;justify-items:center;text-align:center;max-width:420px}
+.card p{margin:0;color:var(--muted);line-height:1.7;font-size:14px;text-wrap:balance}
+.card .score{font-family:var(--f-num);font-size:44px;font-weight:700}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.btn{font-family:var(--f-jp);font-weight:700;font-size:16px;letter-spacing:.12em;padding:12px 36px;border-radius:4px;border:1px solid var(--accent);background:rgba(95,214,195,.12);color:var(--ink);cursor:pointer}
+.btn.ghost{border-color:var(--line);background:transparent}
+.btn:hover{background:rgba(95,214,195,.25)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+/* hangar (ship & loadout select) */
+.hangar{max-width:980px;margin:0 auto;padding-block:calc(20px + env(safe-area-inset-top,0px)) calc(28px + env(safe-area-inset-bottom,0px));padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px));display:grid;gap:18px}
+.hangar header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.hangar h1{margin:0;font-family:var(--f-num);font-weight:700;font-size:44px;letter-spacing:.05em;line-height:1}
+.hangar h1 span{color:var(--accent)}
+.hangar header p{margin:0;color:var(--muted);font-size:14px}
+.modeTabs{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tab{font-family:var(--f-jp);font-weight:700;font-size:15px;letter-spacing:.08em;padding:9px 18px;border-radius:4px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.tab[aria-selected="true"]{border-color:var(--accent);color:var(--ink);background:rgba(95,214,195,.14)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.diff{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-left:12px}
+.dBtn{font-family:var(--f-jp);font-size:13px;font-weight:700;padding:8px 12px;border:none;background:transparent;color:var(--muted);cursor:pointer}
+.dBtn+.dBtn{border-left:1px solid var(--line)}
+.dBtn[aria-checked="true"][data-d="easy"]{background:rgba(95,214,195,.18);color:var(--ink)}
+.dBtn[aria-checked="true"][data-d="normal"]{background:rgba(255,210,122,.18);color:var(--ink)}
+.dBtn[aria-checked="true"][data-d="hard"]{background:rgba(255,87,71,.2);color:var(--ink)}
+.dBtn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.diffNote{font-size:11px;color:var(--muted)}
+@media (max-width:520px){.diff{margin-left:0}}
+.prog{margin-left:auto;font-family:var(--f-num);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.mpanel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,320px);gap:16px;background:rgba(12,37,53,.75);border:1px solid var(--line);border-radius:6px;padding:14px}
+@media (max-width:760px){.mpanel{grid-template-columns:minmax(0,1fr)}}
+.mlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px;align-content:start}
+.mBtn{display:grid;gap:1px;text-align:left;padding:6px 8px;border-radius:4px;border:1px solid var(--line);background:rgba(6,20,31,.6);color:var(--ink);font-family:var(--f-jp);cursor:pointer;min-width:0}
+.mBtn b{font-family:var(--f-num);font-size:13px}
+.mBtn span{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mBtn.done b::after{content:" ✓";color:var(--accent)}
+.mBtn[aria-pressed="true"]{border-color:var(--accent);background:rgba(95,214,195,.16)}
+.mBtn:disabled{opacity:.35;cursor:default}
+.mBtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.minfo{display:grid;gap:8px;align-content:start;min-width:0}
+.minfo h3{margin:0;font-size:18px}
+.minfo .wv{display:flex;flex-wrap:wrap;gap:6px}
+.minfo .wv span{font-size:12px;padding:3px 8px;border-radius:3px;background:rgba(143,195,214,.12)}
+.minfo .wv span.boss{background:rgba(255,87,71,.2);color:var(--ink)}
+.minfo .lbl2{font-size:11px;color:var(--muted);letter-spacing:.08em}
+.minfo .rw{font-size:13px;color:var(--shell)}
+.shipBtn:disabled{opacity:.4;cursor:default}
+.shipBtn em{font-style:normal;font-size:10px;color:var(--shell)}
+.wname.lock{opacity:.4}
+#banner{left:50%;top:22%;transform:translateX(-50%);text-align:center;font-family:var(--f-num);font-weight:700;font-size:40px;letter-spacing:.12em;color:var(--ink);text-shadow:0 2px 12px rgba(0,0,0,.7);z-index:4}
+#banner small{display:block;font-family:var(--f-jp);font-size:15px;letter-spacing:.1em;color:var(--danger);margin-top:4px}
+#banner.show{animation:bannerIn 2.6s ease forwards}
+@keyframes bannerIn{0%{opacity:0;transform:translate(-50%,10px)}12%{opacity:1;transform:translate(-50%,0)}75%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){#banner.show{animation:none}}
+.card .unl{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.card .unl span{font-size:13px;padding:4px 10px;border-radius:3px;border:1px solid var(--shell);color:var(--shell)}
+.hgrid{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:760px){.hgrid{grid-template-columns:minmax(0,1fr)}}
+.shiplist{display:grid;gap:14px}
+.tierName{font-size:11px;letter-spacing:.14em;color:var(--muted);margin-bottom:6px}
+.tierShips{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px}
+.shipBtn{display:grid;gap:2px;text-align:left;padding:8px 10px;border-radius:4px;border:1px solid var(--line);background:rgba(12,37,53,.7);color:var(--ink);font-family:var(--f-jp);cursor:pointer}
+.shipBtn b{font-size:14px}
+.shipBtn span{font-size:11px;color:var(--muted);font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.shipBtn[aria-pressed="true"]{border-color:var(--accent);background:rgba(95,214,195,.14)}
+.shipBtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.config{display:grid;gap:14px;background:rgba(12,37,53,.75);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0}
+.cfgHead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.cfgHead h2{margin:0;font-size:22px}
+.cfgHead p{margin:0;font-size:13px;color:var(--muted)}
+#preview{width:100%;height:150px;display:block;background:linear-gradient(var(--sea),#0b2738);border-radius:4px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}
+.stat .v.sm{font-size:13px;line-height:1.4}
+@media (max-width:460px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{display:grid;gap:4px}
+.stat .v{font-family:var(--f-num);font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+.meter{height:4px;background:rgba(143,195,214,.15);border-radius:2px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent)}
+.slots{display:grid;gap:8px}
+.slot{display:grid;grid-template-columns:120px minmax(0,1fr);gap:4px 10px;align-items:center}
+@media (max-width:460px){.slot{grid-template-columns:minmax(0,1fr)}}
+.slot label{font-size:12px;color:var(--muted)}
+.slot select{width:100%;font-family:var(--f-jp);font-size:14px;padding:8px;border-radius:4px;border:1px solid var(--line);background:#081c29;color:var(--ink)}
+.slot select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.slot .desc{grid-column:2;font-size:11px;color:var(--muted);line-height:1.5}
+@media (max-width:460px){.slot .desc{grid-column:1}}
+.keys{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;font-size:12px;color:var(--ink)}
+.keys b{font-family:var(--f-num);color:var(--accent);font-weight:500}
+.go{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.slotHead{font-size:11px;letter-spacing:.12em;color:var(--accent)}
+.slot.bulk label{color:var(--ink);font-weight:700}
+.slotEach{display:grid;gap:8px}
+.slotEach[open]{gap:8px}
+.slotEach summary{cursor:pointer;font-size:12px;color:var(--muted);letter-spacing:.06em;padding:4px 0}
+.slotEach summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.slotEach > .slot{margin-top:8px}
+.dbg{display:grid;grid-template-columns:auto 90px;gap:4px 10px;align-items:center;padding:10px;border:1px dashed var(--line);border-radius:4px}
+.dbg label{font-size:12px;color:var(--shell)}
+.dbg input{font-family:var(--f-num);font-size:15px;padding:6px 8px;border-radius:4px;border:1px solid var(--line);background:#081c29;color:var(--ink);width:100%}
+.dbg input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.dbg span{grid-column:1 / -1;font-size:11px;color:var(--muted);line-height:1.5}
+.dbgGo{grid-column:1 / -1;justify-self:start;font-size:13px;padding:6px 16px}
+#dbgMsg:empty{display:none}
+.wdata{display:grid;gap:12px;background:rgba(12,37,53,.75);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0}
+.wdata h2{margin:0;font-size:18px}
+.wscroll{overflow-x:auto;padding-bottom:4px}
+.wtable{display:grid;grid-template-columns:96px repeat(5,minmax(110px,1fr));gap:8px 28px;min-width:780px;align-items:center}
+.wth{font-size:11px;color:var(--muted);letter-spacing:.06em;line-height:1.4}
+.wname{font-size:13px;font-weight:700;white-space:nowrap}
+.wname.on{color:var(--accent)}
+.wname.on::after{content:" ●";font-size:9px;vertical-align:middle}
+.wgrp{grid-column:1 / -1;font-size:11px;color:var(--muted);letter-spacing:.14em;border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
+.wbar{display:grid;grid-template-columns:58px minmax(0,1fr);gap:8px;align-items:center}
+.wbar .tr{height:6px;background:rgba(143,195,214,.12);border-radius:3px;overflow:hidden}
+.wbar i{display:block;height:100%;border-radius:3px}
+.wbar.c0 i{background:var(--enemy)}
+.wbar.c1 i{background:var(--accent)}
+.wbar.c2 i{background:var(--shell)}
+.wbar.c3 i{background:#8fb5d6}
+.wbar.c4 i{background:#c4ced3}
+.wbar small{font-family:var(--f-jp);font-size:9px;color:var(--muted);margin-left:2px}
+.wbar span{font-family:var(--f-num);font-size:12px;text-align:left;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wbar span.na{font-family:var(--f-jp);font-size:10px;color:var(--muted)}
+.homeBtn{position:fixed;z-index:3;left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));font-family:var(--f-jp);font-size:12px;font-weight:700;letter-spacing:.06em;padding:9px 14px;border-radius:4px;border:1px solid var(--line);background:rgba(6,20,31,.75);color:var(--muted);cursor:pointer;touch-action:none}
+.homeBtn.armed{border-color:var(--danger);color:var(--ink);background:rgba(255,87,71,.18)}
+.homeBtn:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media (max-width:520px){.fbtn.main{width:94px;height:94px;font-size:17px}.fbtn{width:62px;height:62px;font-size:12px}#mini{width:96px;height:96px}#tl{min-width:150px}.big{font-size:22px}.hangar h1{font-size:36px}#hint{display:none}}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div class="hud" id="tl">
+  <div id="shipName"></div>
+  <div class="row"><span class="lbl">撃沈</span><span class="big" id="score">0</span></div>
+  <div class="row" id="waveRow" hidden><span class="lbl">WAVE</span><span class="mid" id="waveTxt"></span></div>
+  <div>
+    <div class="row" style="justify-content:space-between"><span class="lbl">耐久</span><span class="mid" id="hpTxt">0</span></div>
+    <div id="hpbar"><div id="hpfill"></div></div>
+  </div>
+  <div class="row"><span class="lbl">速力</span><span class="mid" id="spd">0.0 kn</span></div>
+  <div id="fieldRow" hidden>
+    <div class="row" style="justify-content:space-between"><span class="lbl">磁場</span><span class="mid" id="fieldTxt"></span></div>
+    <div id="fieldbar"><div id="fieldfill"></div></div>
+  </div>
+  <div id="fuelRow" hidden>
+    <div class="row" style="justify-content:space-between"><span class="lbl">燃料</span><span class="mid" id="fuelTxt">100%</span></div>
+    <div id="fuelbar"><div id="fuelfill"></div></div>
+  </div>
+</div>
+<canvas id="mini" width="260" height="260"></canvas>
+<button class="homeBtn" id="homeBtn" hidden>選択画面へ</button>
+<div class="hud" id="airPanel" hidden></div>
+
+<div id="fireWrap" hidden>
+  <div class="modeRow" id="airRow" hidden>
+    <button class="modeBtn" id="ctrlBtn"><span class="lbl">操作</span><b id="ctrlVal">艦</b><span class="k">C</span></button>
+    <button class="modeBtn" id="atkBtn"><span class="lbl">航空隊</span><b id="atkVal">攻撃</b><span class="k">SPACE</span></button>
+    <button class="modeBtn" id="rtbBtn"><span class="lbl">航空隊</span><b>帰還</b><span class="k">B</span></button>
+    <button class="modeBtn" id="launchBtn"><span class="lbl">航空隊</span><b>発艦</b><span class="k">R</span></button>
+    <button class="modeBtn" id="alBtn" aria-pressed="true"><span class="lbl">自動発艦</span><b id="alVal">ON</b><span class="k">T</span></button>
+  </div>
+  <div class="modeRow">
+    <span id="boostRow" hidden style="display:contents"><button class="modeBtn" id="boostBtn"><span class="lbl">押している間</span><b>ブースト</b><span class="k">SHIFT</span></button></span>
+    <button class="modeBtn" id="aaBtn" aria-pressed="true" hidden><span class="lbl">自動対空</span><b id="aaVal">ON</b><span class="k">V</span></button>
+    <button class="modeBtn" id="spreadBtn" data-v="0" title="一斉射撃のときだけ有効"><span class="lbl">散らばり</span><b id="spreadVal">標準</b><span class="k">E</span></button>
+    <button class="modeBtn" id="lockBtn" aria-pressed="false"><span class="lbl">ロックオン</span><b id="lockVal">自動</b><span class="k">F</span></button>
+    <button class="modeBtn" id="modeBtn" aria-pressed="false"><span class="lbl">射撃モード</span><b id="modeVal">個別射撃</b><span class="k">Q</span></button>
+  </div>
+  <div id="fireRow"></div>
+  <div id="status"></div>
+</div>
+<div class="hud" id="hint" hidden>タップで目的地 ・ 敵タップ / F でロックオン ・ Q で一斉射撃</div>
+
+<div class="overlay" id="menu">
+  <div class="hangar">
+    <header><h1>SALVO<span>.io</span></h1><p>艦と武装を選んで出撃する</p></header>
+    <div class="modeTabs" role="tablist">
+      <button class="tab" id="tabMission" role="tab">ミッション</button>
+      <button class="tab" id="tabFree" role="tab">フリープレイ</button>
+      <div class="diff" role="radiogroup" aria-label="難易度">
+        <button class="dBtn" data-d="easy" role="radio">イージー</button><button class="dBtn" data-d="normal" role="radio">ノーマル</button><button class="dBtn" data-d="hard" role="radio">ハード</button>
+      </div>
+      <span class="prog" id="progTxt"></span>
+    </div>
+    <section class="mpanel" id="missionPanel">
+      <div class="mlist" id="mList"></div>
+      <div class="minfo" id="mInfo"></div>
+    </section>
+    <div class="hgrid">
+      <div class="shiplist" id="shipList"></div>
+      <div class="config">
+        <div class="cfgHead"><h2 id="cfgName"></h2><p id="cfgRole"></p></div>
+        <canvas id="preview"></canvas>
+        <div class="stats" id="stats"></div>
+        <div class="slots" id="slots"></div>
+        <div class="keys">
+          <b>TAP / CLICK</b><span>そこへ転舵・航行。敵をタップで目標固定</span>
+          <b>SPACE / 1</b><span>砲を発射(押し続けると装填ごとに発射)</span>
+          <b>2 ・ 3</b><span>ミサイル ・ 魚雷を発射</span>
+          <b>Q</b><span>射撃モード切替。一斉射撃は全砲塔の装填と照準が揃った瞬間にまとめて撃つ</span>
+          <b>E</b><span>一斉射撃の散らばり切替(集束 → 標準 → 散布)</span>
+          <b>SHIFT ・ 5</b><span>超ド級戦艦のみ。A:押している間ブースト・チャージキャノン発射。B:シールドが壊れて40秒後に 5 で磁場爆発(5秒溜め)</span>
+          <b>F</b><span>ロックオン。押すたびに近い敵から順に切替、最後に自動へ戻る</span>
+          <b>4 ・ V</b><span>対空射撃(押している間すぐ全力で撃つ)・自動対空の ON/OFF。自動は撃ち始めが遅く弾数も少ない</span>
+          <b>R ・ T</b><span>空母のみ。選んでいる航空隊を発艦させる・自動発艦の ON/OFF(OFF の航空隊は R を押すまで艦上で待つ)</span>
+          <b>C ・ X ・ B</b><span>空母のみ。操作を 艦 → 全航空隊 → 第1航空隊 … と切替・攻撃開始・帰還命令。航空隊操作中はタップで移動先、敵タップで攻撃目標。航空隊を操作中は SPACE が攻撃開始・爆弾投下になる(照準の十字が着弾点)。X でも同じ</span>
+        </div>
+        <div class="dbg" id="dbgLock">
+          <label for="dbgPass">デバッグ用パスワード</label>
+          <input id="dbgPass" type="password" autocomplete="off" inputmode="numeric">
+          <button class="btn ghost dbgGo" id="dbgGo">解除</button>
+          <span id="dbgMsg"></span>
+        </div>
+        <div class="dbg" id="dbgBody" hidden>
+          <label for="dbgAll">デバッグ：すべて解放</label>
+          <input id="dbgAll" type="checkbox" style="width:22px;height:22px;justify-self:start">
+          <label for="dbgScore">デバッグ：開始時の撃沈数(フリープレイ)</label>
+          <input id="dbgScore" type="number" min="0" max="99" step="1" value="0" inputmode="numeric">
+          <span>敵の強さの目安：0 小型艇 ・ 3 護衛・駆逐 ・ 7 巡洋・空母 ・ 12 戦艦 ・ 20 超ド級。プレイ中は + / - キーで増減</span>
+          <button class="btn ghost dbgGo" id="dbgOff">デバッグを閉じる</button>
+        </div>
+        <div class="go"><button class="btn ghost" id="resetLoad">初期装備に戻す</button><button class="btn" id="startBtn">出撃</button></div>
+      </div>
+    </div>
+    <section class="wdata" aria-labelledby="wdataTitle">
+      <div class="cfgHead"><h2 id="wdataTitle">武装データ</h2><p>緑の名前は今の艦に積んでいる武装</p></div>
+      <div class="wscroll"><div class="wtable" id="wtable"></div></div>
+    </section>
+  </div>
+</div>
+<div class="hud" id="banner" hidden></div>
+<div class="overlay center" id="clearOv" hidden>
+  <div class="card">
+    <p id="clearSub">ミッション完了</p>
+    <div class="score" id="clearName"></div>
+    <p id="clearMsg"></p>
+    <div class="unl" id="clearUnl"></div>
+    <div class="btnrow"><button class="btn" id="nextBtn">次のミッションの準備へ</button><button class="btn ghost" id="againBtn">もう一度</button></div>
+  </div>
+</div>
+<div class="overlay center" id="over" hidden>
+  <div class="card">
+    <p id="overShip">撃沈されました</p>
+    <div class="score" id="finalScore">0</div>
+    <p>撃沈数</p>
+    <div class="btnrow"><button class="btn" id="retryBtn">同じ艦で再出撃</button><button class="btn ghost" id="hangarBtn">艦を選び直す</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================
+   DATA — weapons & ship classes
+   ========================================================= */
+const GUN_ORDER = ["AC", "G1", "G2", "G3", "G4", "BA", "RB", "BB", "RA", "SPG"];  // display order; what fits a slot is decided by tier
+const MSL_ORDER = ["MA", "MB", "MC", "MD", "ME"];  // "X以下" missile slots allow everything up to X in this order; plain missile slots go up to MC
+const TOR_ORDER = ["TA", "TB", "TC", "TD"];
+const AIR_ORDER = ["BOMB", "BOMBB", "TORP"];
+const AIR_RANGE = 2600;      // how far from the carrier a squadron will go for a target
+const SQUAD_SIZE = 3;        // planes per squadron (one air slot = one squadron)
+const REARM_T = 8;           // s on deck after landing before the plane can launch again
+const REBUILD_T = 30;        // s to replace a plane that was shot down
+const AUTO_ATK_T = 5;        // player squadrons start their attack run on their own after holding this long
+const AA_AUTO_DELAY = 1.2;   // automatic AA waits this long after a plane comes in range
+const AA_AUTO_RATE = 0.55;   // and fires at this fraction of the manual rate
+const AA = {
+  mg:  { name: "対空機銃", range: 500, interval: 0.2, dmg: 3.5, hit: 0.35 },
+  gun: { name: "対空砲", range: 800, interval: 1.2, dmg: 12, burst: 30, sigma: 34 },
+  msl: { name: "対空ミサイル", range: 1400, interval: 7, dmg: 45, speed: 340 },
+};
+const BOMB_FALL = 2.0;   // s a bomb takes to reach the water (shown like a shell, with an impact marker)
+const BOMB_CARRY = 0.85; // fraction of the plane's speed the bomb keeps while falling
+const BOOST = { speed: 1.7, accel: 3, burn: 22, regen: 9, dodgeCost: 35, dodgeT: 0.6, dodgeV: 230 };  // 超ド級: fuel %/s, emergency forward dash
+const FIELD = { radius: 180, hp: 200, cool: 40, charge: 5, blastR: 400, blastDmg: 200 };  // 超ド級B: energy field / self-centred burst
+// difficulty: easy = enemies dodge less eagerly and you heal 50% when a wave is cleared; normal = heal 30%; hard = no heal (the original game)
+const DIFF = { easy: { name: "イージー", skill: 0.5, dodgeCd: 1.6, heal: 0.5 }, normal: { name: "ノーマル", skill: 1, dodgeCd: 1, heal: 0.3 }, hard: { name: "ハード", skill: 1, dodgeCd: 1, heal: 0 } };
+const AIR_TORP = { range: 560, dmg: 70, v: 62, spread: 0, count: 1 };
+const WEAPONS = {
+  AC: { tier: 0, name: "機関砲", group: "gun", kind: "shell", range: 360, speed: 400, reload: 0.22, dmg: 1.3, barrels: 1, disp: 0.06, turn: 3.6, tol: 0.09, tr: 4, barrel: 11, bw: 1.6, desc: "射程は短いが近距離で連射。押し続けて撃つ" },
+  G1: { tier: 1, name: "単装砲", group: "gun", kind: "shell", range: 740, speed: 205, reload: 1.4, dmg: 13.5, barrels: 1, disp: 0.024, turn: 2.3, tol: 0.04, tr: 5.5, barrel: 16, bw: 2.6, desc: "弾速やや遅め。連射と砲塔旋回が速い" },
+  G2: { tier: 2, name: "2連装砲", group: "gun", kind: "shell", range: 850, speed: 240, reload: 3.0, dmg: 16, barrels: 2, disp: 0.022, turn: 1.2, tol: 0.035, tr: 6.5, barrel: 20, bw: 2.8, desc: "標準的な主砲。旋回は少し遅い" },
+  G3: { tier: 3, name: "3連装砲", group: "gun", kind: "shell", range: 900, speed: 240, reload: 4.4, dmg: 16, barrels: 3, disp: 0.022, turn: 0.75, tol: 0.035, tr: 7.8, barrel: 22, bw: 2.8, desc: "3発同時。装填が長く旋回もかなり遅い" },
+  BA: { tier: 4, name: "巨砲A", group: "gun", kind: "shell", range: 1050, speed: 275, reload: 4.4, dmg: 36, barrels: 2, disp: 0.02, turn: 0.85, tol: 0.03, tr: 9, barrel: 30, bw: 4, desc: "弾速やや速く高威力。旋回は少し遅い" },
+  G4: { tier: 3, name: "4連装砲", group: "gun", kind: "shell", range: 920, speed: 245, reload: 5, dmg: 20, barrels: 4, disp: 0.022, turn: 0.785, tol: 0.035, tr: 8.6, barrel: 23, bw: 2.4, desc: "4発同時で一斉射80。3連装砲以上の枠に積める。旋回45°/秒" },
+  RB: { tier: 4, name: "レールキャノンB", group: "gun", kind: "shell", range: 1600, speed: 420, reload: 5, dmg: 80, barrels: 2, shots: 1, disp: 0.01, turn: 0.52, tol: 0.03, tr: 8.5, barrel: 36, bw: 1.8, charge: 0.9, desc: "チャージ0.9秒で発射(その間は向き固定)。弾速はミサイルBより少し速い程度。巨砲A以上の枠に積める" },
+  RA: { tier: 5, name: "レールキャノンA", group: "gun", kind: "shell", range: 2100, speed: 1000, reload: 7, dmg: 130, barrels: 2, shots: 1, disp: 0.006, turn: 0.35, tol: 0.03, tr: 9.5, barrel: 46, bw: 2.2, charge: 1.6, desc: "チャージ1.6秒(向き固定・射線が敵にも見える)のあと超高速弾。旋回20°/秒。巨砲B以上の枠に積める" },
+  SPG: { tier: 5, name: "自走砲", group: "gun", kind: "shell", range: 1400, speed: 270, reload: 7, dmg: 180, blast: 40, blastR: 53, barrels: 1, disp: 0.02, turn: 0.35, tol: 0.03, tr: 10.5, barrel: 30, bw: 6.5, arc: true, desc: "高い弧を描いて飛ぶ遅い砲弾。直撃180+周囲に爆風40。旋回はかなり遅い(20°/秒)。巨砲Bの枠に積める" },
+  BB: { tier: 5, name: "巨砲B", group: "gun", kind: "shell", range: 1200, speed: 360, reload: 6.5, dmg: 78, barrels: 2, disp: 0.018, turn: 0.32, tol: 0.03, tr: 11, barrel: 38, bw: 5, desc: "弾速が速く破壊的な威力。旋回が非常に遅い" },
+  MA: { name: "ミサイルA", group: "msl", kind: "ma", range: 820, reload: 5.5, dmg: 8, count: 4, v0: 45, vmax: 330, acc: 280, turn: 1.6, tol: 0.08, fuse: 16, blast: 26, desc: "ポッドから4発。初速は遅く途中から加速、近づくと近接信管で爆発" },
+  MB: { name: "ミサイルB", group: "msl", kind: "mb", range: 1100, reload: 6.5, dmg: 70, count: 1, delay: 1.0, vmax: 360, desc: "垂直発射。向きを固定して(敵にも見える)一拍おいて高速直進。爆発なし" },
+  MD: { name: "ミサイルD", group: "msl", kind: "md", range: 1000, reload: 10, dmg: 9, count: 10, gap: 0.12, rise: 0.35, v0: 30, vmax: 330, acc: 280, home: 0.85, desc: "垂直発射で10発を次々に撃ち出す。ミサイルA並みに加速。黄色いレーダー照射が当たっている間だけ少し追尾" },
+  ME: { name: "ミサイルE", group: "msl", kind: "me", range: 900, reload: 9, dmg: 45, count: 1, v0: 40, vmax: 200, acc: 160, blastR: 90, turn: 1.6, tol: 0.06, desc: "ミサイルAの単発版。撃った瞬間の敵の位置へまっすぐ飛び、到着で大爆発(半径約55m)" },
+  CC: { tier: 99, name: "チャージキャノン", group: "cc", kind: "shell", range: 1300, speed: 420, reload: 14, dmg: 200, blast: 100, blastR: 80, blast2: 50, blastR2: 120, barrels: 1, shots: 1, disp: 0.008, turn: 0.35, tol: 0.03, tr: 13, barrel: 42, bw: 7, charge: 2, leadT: 1.5, desc: "超ド級戦艦の固定武装。2秒溜めてレールキャノンB並みの弾を撃ち、直撃200、周囲80m以内に100、120m以内に50ダメージ。装填14秒" },
+  EF: { tier: 99, name: "エネルギー磁場発生装置", group: "cc", kind: "field", range: 400, reload: 40, dmg: 200, desc: "超ド級B型の固定武装。周囲180mに弾・ミサイル・魚雷・艦載機を消すシールド(耐久200)。壊れると40秒後に5秒溜めて周囲400mに200ダメージの爆発、その後シールドが戻る" },
+  MC: { name: "ミサイルC", group: "msl", kind: "mc", range: 760, reload: 7.5, dmg: 24, count: 2, vmax: 145, steer: 1.8, life: 12, desc: "誘導弾。黄色いレーダー照射を敵に当て続けている間だけ追尾する" },
+  TA: { name: "魚雷管A", group: "tor", kind: "tor", range: 900, reload: 11, dmg: 42, count: 2, spread: 0.07, v: 55, turn: 1.3, tol: 0.06, desc: "2本同時。標準的な魚雷管" },
+  TB: { name: "魚雷管B", group: "tor", kind: "tor", range: 900, reload: 12, dmg: 34, count: 3, spread: 0.07, v: 55, turn: 0.9, tol: 0.06, desc: "3本同時。旋回と1本あたりの威力は少し低い" },
+  TC: { name: "魚雷管C", group: "tor", kind: "tor", range: 560, reload: 11, dmg: 42, count: 2, spread: 0.07, v: 70, turn: 1.3, tol: 0.06, desc: "2本同時で少し速い。そのぶん航続距離が短い" },
+  BOMB:  { name: "爆撃機A", group: "air", kind: "plane", ptype: "bomb", hp: 30, v: 170, turn: 1.8, dmg: 28, bombs: 3, bombR: 5, size: 1, range: AIR_RANGE, reload: REARM_T, desc: "小型爆弾3発を横並びに落とす。当てやすい。耐久30" },
+  TORP:  { name: "雷撃機", group: "air", kind: "plane", ptype: "torp", hp: 36, v: 150, turn: 1.6, dmg: 70, range: AIR_RANGE, reload: REARM_T, desc: "低空で近づき、魚雷1本を落として離脱する。耐久36" },
+  BOMBB: { name: "爆撃機B", group: "air", kind: "plane", ptype: "bomb", hp: 36, v: 150, turn: 1.5, dmg: 80, bombs: 1, bombR: 7, size: 1.18, range: AIR_RANGE, reload: REARM_T, desc: "大型爆弾1発。爆発範囲が広く当たれば大ダメージ。少し遅く重い。耐久36" },
+  TD: { name: "魚雷管D", group: "tor", kind: "tor", range: 1100, reload: 12, dmg: 58, count: 1, spread: 0, v: 40, turn: 1.2, tol: 0.06, home: 0.3, desc: "1本。いちばん遅いが緩やかに敵を追尾する" },
+};
+const GROUP_INFO = { cc: { label: "CHG", sub: "チャージ砲", key: "5" }, aa: { label: "AA", sub: "対空", key: "4" }, gun: { label: "FIRE", sub: "砲", key: "SPACE / 1" }, msl: { label: "MSL", sub: "ミサイル", key: "2" }, tor: { label: "TORP", sub: "魚雷", key: "3" } };
+
+function slotOptions(sl) {
+  const guns = sl.max ? GUN_ORDER.filter(k => WEAPONS[k].tier <= WEAPONS[sl.max].tier && (!sl.min || GUN_ORDER.indexOf(k) >= GUN_ORDER.indexOf(sl.min))) : [];
+  if (sl.k === "gun") return guns;
+  if (sl.k === "msl") return MSL_ORDER.slice(0, MSL_ORDER.indexOf(sl.max || "MC") + 1);
+  if (sl.k === "tor") return TOR_ORDER.slice();
+  if (sl.k === "gunmsl") return guns.concat(MSL_ORDER.slice(0, 3));
+  if (sl.k === "air") return AIR_ORDER.slice();
+  if (sl.k === "fixed") return [sl.w];
+  return [];
+}
+function slotLabel(sl) {
+  if (sl.k === "fixed") return "固定武装";
+  if (sl.k === "air") return `航空隊(${SQUAD_SIZE}機)`;
+  if (sl.k === "gun") return sl.min ? WEAPONS[sl.min].name + "以上" : WEAPONS[sl.max].name + "以下";
+  if (sl.k === "msl") return sl.max ? WEAPONS[sl.max].name + "以下" : "ミサイル";
+  if (sl.k === "tor") return "魚雷管";
+  return WEAPONS[sl.max].name + "以下 / ミサイル";
+}
+
+// x: position along hull (fraction of length, + = bow), y: across (fraction of width, + = starboard)
+const SHIPS = {
+  boatA:   { name: "ボートA", role: "砲1門+ミサイル。軽快で扱いやすい", tier: 0, len: 36, wid: 9, hp: 48, spd: 112, acc: 48, turn: 1.7, rud: 3.2, slots: [{ k: "gun", max: "G2", x: 0.24 }, { k: "msl", x: -0.26 }] },
+  boatB:   { name: "ボートB", role: "魚雷管1門だけの突撃艇", tier: 0, len: 32, wid: 9, hp: 42, spd: 118, acc: 52, turn: 1.8, rud: 3.4, slots: [{ k: "tor", x: -0.05 }] },
+  ptb:     { name: "魚雷艇", role: "単装砲1門と魚雷管2門", tier: 0, len: 44, wid: 10, hp: 60, spd: 108, acc: 42, turn: 1.45, rud: 3.0, slots: [{ k: "gun", max: "G1", x: 0.3 }, { k: "tor", x: -0.05, y: -0.3 }, { k: "tor", x: -0.05, y: 0.3 }] },
+  frigate: { aa: { mg: 2 }, name: "フリゲート", role: "単装砲2門。後部はミサイルにもできる", tier: 1, len: 58, wid: 12, hp: 88, spd: 96, acc: 32, turn: 1.05, rud: 2.4, slots: [{ k: "gun", max: "G1", x: 0.28 }, { k: "gunmsl", max: "G1", x: -0.3 }] },
+  ddA:     { aa: { mg: 3 }, name: "駆逐艦A", role: "3連装級1門・2連装級1門・ミサイル", tier: 1, len: 68, wid: 13, hp: 118, spd: 90, acc: 28, turn: 0.92, rud: 2.1, slots: [{ k: "gun", max: "G3", x: 0.28 }, { k: "gun", max: "G2", x: -0.3 }, { k: "msl", x: -0.04 }] },
+  ddB:     { aa: { mg: 3 }, name: "駆逐艦B", role: "2連装級2門・ミサイル・魚雷", tier: 2, len: 70, wid: 13, hp: 120, spd: 90, acc: 28, turn: 0.9, rud: 2.1, slots: [{ k: "gun", max: "G2", x: 0.3 }, { k: "gun", max: "G2", x: -0.33 }, { k: "msl", x: 0.1 }, { k: "tor", x: -0.12 }] },
+  ddC:     { aa: { mg: 3, gun: 1 }, name: "駆逐艦C", role: "2連装級3門と魚雷。ミサイルなし", tier: 1, len: 68, wid: 13, hp: 115, spd: 91, acc: 28, turn: 0.92, rud: 2.1, slots: [{ k: "gun", max: "G2", x: 0.32 }, { k: "gun", max: "G2", x: 0.12 }, { k: "gun", max: "G2", x: -0.32 }, { k: "tor", x: -0.11 }] },
+  aegisB:  { aa: { mg: 3, gun: 1, msl: 2 }, name: "イージス艦B", role: "レールキャノンB級・魚雷・ミサイル2。耐久が高い", tier: 2, len: 82, wid: 17, hp: 200, spd: 80, acc: 22, turn: 0.75, rud: 1.8, radar: 1.5, slots: [{ k: "gun", max: "RB", x: 0.33 }, { k: "msl", max: "MC", x: 0.15 }, { k: "tor", x: -0.12 }, { k: "msl", max: "ME", x: -0.33 }] },
+  aegisC:  { aa: { mg: 6, gun: 3, msl: 4 }, name: "イージス艦C", role: "対空特化。単装砲2・ミサイル3", tier: 3, len: 78, wid: 15, hp: 135, spd: 86, acc: 26, turn: 0.85, rud: 2.0, radar: 1.5, slots: [{ k: "gun", max: "G1", x: 0.38 }, { k: "msl", max: "MC", x: 0.19 }, { k: "msl", max: "ME", x: 0 }, { k: "msl", max: "MC", x: -0.19 }, { k: "gun", max: "G1", x: -0.38 }] },
+  sdB:     { aa: { mg: 10, gun: 4, msl: 3 }, block: true, name: "超ド級戦艦B", role: "飛行場2面(18機)・ミサイル6・主砲4。磁場シールドと自爆級の広域爆発", tier: 3, len: 160, wid: 64, hp: 650, spd: 46, acc: 9, turn: 0.33, rud: 0.9,
+    slots: [{ k: "fixed", w: "EF", x: -0.24, y: 0 },
+      { k: "air", x: 0.32, y: -0.31 }, { k: "air", x: 0.14, y: -0.31 }, { k: "air", x: -0.04, y: -0.31 },
+      { k: "air", x: 0.32, y: 0.31 }, { k: "air", x: 0.14, y: 0.31 }, { k: "air", x: -0.04, y: 0.31 },
+      { k: "msl", max: "ME", x: 0.3, y: -0.08 }, { k: "msl", max: "MC", x: 0.15, y: -0.08 }, { k: "msl", max: "MC", x: 0.0, y: -0.08 },
+      { k: "msl", max: "ME", x: 0.3, y: 0.08 }, { k: "msl", max: "MC", x: 0.15, y: 0.08 }, { k: "msl", max: "MC", x: 0.0, y: 0.08 },
+      { k: "gun", min: "RB", max: "SPG", def: "RB", x: -0.3, y: -0.47 }, { k: "gun", min: "RB", max: "SPG", def: "RB", x: -0.44, y: -0.47 },
+      { k: "gun", min: "RB", max: "SPG", def: "RB", x: -0.3, y: 0.47 }, { k: "gun", min: "RB", max: "SPG", def: "RB", x: -0.44, y: 0.47 }] },
+  sdA:     { aa: { mg: 8, gun: 4, msl: 2 }, twin: true, boost: true, name: "超ド級戦艦A", role: "双胴の超大型艦。固定チャージキャノン・ミサイル4・自由砲座4。ブーストできる", tier: 3, len: 140, wid: 46, hp: 520, spd: 52, acc: 11, turn: 0.38, rud: 1.0,
+    slots: [{ k: "fixed", w: "CC", x: 0.04, y: 0 },
+      { k: "gun", max: "SPG", x: 0.3, y: -0.33 }, { k: "msl", max: "MC", x: 0.06, y: -0.33 }, { k: "msl", max: "ME", x: -0.14, y: -0.33 }, { k: "gun", max: "SPG", x: -0.38, y: -0.33 },
+      { k: "gun", max: "SPG", x: 0.3, y: 0.33 }, { k: "msl", max: "MC", x: 0.06, y: 0.33 }, { k: "msl", max: "ME", x: -0.14, y: 0.33 }, { k: "gun", max: "SPG", x: -0.38, y: 0.33 }] },
+  bbM:     { aa: { mg: 6, gun: 2, msl: 3 }, name: "ミサイル戦艦", role: "ミサイル6門+単装砲2門。イージス艦と同じ長距離レーダー", tier: 3, len: 118, wid: 25, hp: 300, spd: 58, acc: 13, turn: 0.45, rud: 1.2, radar: 1.5, slots: [{ k: "gun", max: "G1", x: 0.41 }, { k: "msl", max: "ME", x: 0.28 }, { k: "msl", max: "ME", x: 0.16 }, { k: "msl", max: "ME", x: 0.04 }, { k: "msl", max: "MC", x: -0.09 }, { k: "msl", max: "MC", x: -0.21 }, { k: "msl", max: "MC", x: -0.33 }, { k: "gun", max: "G1", x: -0.43 }] },
+  aegis:   { aa: { mg: 2, gun: 1, msl: 2 }, name: "イージス艦A", role: "ミサイル3門+単装砲。レーダー範囲が広い", tier: 2, len: 74, wid: 15, hp: 125, spd: 86, acc: 26, turn: 0.85, rud: 2.0, radar: 1.5, slots: [{ k: "gun", max: "G1", x: 0.36 }, { k: "msl", x: 0.18 }, { k: "msl", x: -0.2 }, { k: "msl", x: -0.36 }] },
+  cruiser: { aa: { mg: 4, gun: 2 }, name: "巡洋艦", role: "巨砲A級・2連装級・単装級・魚雷", tier: 2, len: 86, wid: 16, hp: 175, spd: 78, acc: 20, turn: 0.72, rud: 1.7, slots: [{ k: "gun", max: "BA", x: 0.3 }, { k: "gun", max: "G2", x: -0.22 }, { k: "gun", max: "G1", x: -0.38 }, { k: "tor", x: 0.04 }] },
+  bbA:     { aa: { mg: 6, gun: 3 }, name: "戦艦A", role: "巨砲A級3門+巨砲B級1門", tier: 3, len: 112, wid: 24, hp: 300, spd: 58, acc: 13, turn: 0.46, rud: 1.2, slots: [{ k: "gun", max: "BA", x: 0.34 }, { k: "gun", max: "BA", x: 0.17 }, { k: "gun", max: "BB", x: -0.2 }, { k: "gun", max: "BA", x: -0.37 }] },
+  bbB:     { aa: { mg: 6, gun: 2, msl: 1 }, name: "戦艦B", role: "巨砲A級2門・2連装級・魚雷2・ミサイル", tier: 3, len: 114, wid: 25, hp: 290, spd: 60, acc: 14, turn: 0.47, rud: 1.25, slots: [{ k: "gun", max: "BA", x: 0.34 }, { k: "gun", max: "BA", x: -0.36 }, { k: "gun", max: "G2", x: 0.16 }, { k: "tor", x: 0.0, y: -0.32 }, { k: "tor", x: 0.0, y: 0.32 }, { k: "msl", x: -0.18 }] },
+  bbC:     { aa: { mg: 6, gun: 3 }, name: "戦艦C", role: "3連装級を6門。正面火力の塊", tier: 3, len: 120, wid: 24, hp: 320, spd: 56, acc: 12, turn: 0.43, rud: 1.15, slots: [0.38, 0.25, 0.12, -0.12, -0.25, -0.38].map(x => ({ k: "gun", max: "G3", x })) },
+  cvA:     { aa: { mg: 4, gun: 2 }, carrier: true, name: "空母A", role: "航空隊2個+2連装級の砲2門", tier: 2, len: 124, wid: 26, hp: 240, spd: 62, acc: 13, turn: 0.45, rud: 1.2, slots: [{ k: "air", x: 0.22 }, { k: "air", x: -0.22 }, { k: "gun", max: "G2", x: 0.3, y: -0.42 }, { k: "gun", max: "G2", x: -0.3, y: -0.42 }] },
+  cvB:     { aa: { mg: 4, msl: 2 }, carrier: true, name: "空母B", role: "航空隊2個+ミサイル2門+機関砲2門。対空ミサイル装備", tier: 3, len: 124, wid: 26, hp: 240, spd: 62, acc: 13, turn: 0.45, rud: 1.2, slots: [{ k: "air", x: 0.22 }, { k: "air", x: -0.22 }, { k: "msl", x: 0.3, y: -0.42 }, { k: "msl", x: -0.3, y: -0.42 }, { k: "gun", max: "AC", x: 0.36, y: 0.44 }, { k: "gun", max: "AC", x: -0.36, y: 0.44 }] },
+  cvC:     { aa: { mg: 6, gun: 2 }, carrier: true, name: "空母C", role: "航空隊4個。艦載機だらけで、自衩用の機関砲が2門", tier: 3, len: 130, wid: 27, hp: 220, spd: 60, acc: 12, turn: 0.43, rud: 1.15, slots: [{ k: "air", x: 0.32 }, { k: "air", x: 0.11 }, { k: "air", x: -0.1 }, { k: "air", x: -0.31 }, { k: "gun", max: "AC", x: 0.36, y: -0.44 }, { k: "gun", max: "AC", x: -0.36, y: -0.44 }] },
+};
+const TIERS = [
+  { name: "小型艇", ships: ["boatA", "boatB", "ptb"] },
+  { name: "護衛・駆逐", ships: ["frigate", "ddA", "ddC", "ddB"] },
+  { name: "防空・巡洋", ships: ["aegis", "aegisB", "aegisC", "cruiser"] },
+  { name: "戦艦", ships: ["bbA", "bbB", "bbC", "bbM"] },
+  { name: "超ド級", ships: ["sdA", "sdB"] },
+  { name: "空母", ships: ["cvA", "cvB", "cvC"] },
+];
+const SPAWN_TIERS = [["boatA", "boatB", "ptb"], ["frigate", "ddA", "ddC"], ["ddB", "aegis", "aegisB", "cruiser", "cvA"], ["bbA", "bbB", "bbC", "bbM", "aegisC", "cvB", "cvC"]];
+
+/* ---------- missions ----------
+   Every mission has 3 waves. A wave lists its ships in u: a number = a random ship of that class tier
+   (0 小型艇, 1 護衛・駆逐, 2 巡洋級, 3 戦艦級, 4 超ド級), a string = that exact class.
+   boss: the wave is a stronger lone ship; swarm: weak ships coming from all sides.
+   Ships below the mission's tier t count as 雑魚 and get the weakest loadouts. */
+const CLASS_TIERS = [["boatA", "boatB", "ptb"], ["frigate", "ddA", "ddC"], ["ddB", "aegis", "aegisB", "cruiser", "cvA"], ["bbA", "bbB", "bbC", "bbM", "aegisC", "cvB", "cvC"], ["sdA", "sdB"]];
+const N = (n, x) => Array(n).fill(x);
+// boss waves also bring a few weak escorts (雑魚) of the tier below the mission's
+const bossEscort = (M, mi) => ({ n: mi < 5 ? 2 : 3, tier: Math.max(0, M.t - 1) });
+const MISSIONS = [
+  { name: "沿岸哨戒", t: 0, waves: [{ u: [0, 0] }, { u: [0, 0, 0] }, { u: ["frigate"], boss: true }] },
+  { name: "小艇掃討", t: 0, waves: [{ u: [0, 0, 0] }, { u: [0, 0, "frigate"] }, { u: ["ddA"], boss: true }] },
+  { name: "護衛艦隊", t: 1, waves: [{ u: [1, 1] }, { u: [1, 1, 0, 0] }, { u: ["aegis"], boss: true }] },
+  { name: "群狼", t: 0, waves: [{ u: N(6, 0), swarm: true }, { u: N(8, 0), swarm: true }, { u: N(11, 0), swarm: true }] },
+  { name: "巡洋艦来襲", t: 2, waves: [{ u: ["cruiser", 1, 1] }, { u: ["aegis", "aegisB", 1] }, { u: [3], boss: true }] },
+  { name: "機動部隊", t: 2, waves: [{ u: ["cvA", 1, 1] }, { u: [2, 2, "aegisB"] }, { u: ["cvB"], boss: true }] },
+  { name: "大艦隊", t: 1, waves: [{ u: N(7, 1), swarm: true }, { u: N(9, 1), swarm: true }, { u: N(10, 1).concat(["cruiser"]), swarm: true }] },
+  { name: "戦艦出撃", t: 3, waves: [{ u: ["bbA", "aegisC"] }, { u: ["bbB", "cvB", 2] }, { u: [4], boss: true }] },
+  { name: "双胴の怪物", t: 3, waves: [{ u: ["cvC", "bbC", 1, 1] }, { u: ["bbM", "aegisC", 2] }, { u: ["sdA"], boss: true }] },
+  { name: "最終決戦", t: 3, waves: [{ u: ["bbA", "bbB", "cvB", 2, 2] }, { u: ["sdA"], boss: true }, { u: ["sdB"], boss: true }] },
+];
+// what clearing mission i (0-based) unlocks
+const BASE_SHIPS = ["boatA", "boatB", "ptb"];
+const BASE_WEAPONS = ["AC", "G1", "G2", "MA", "TA", "CC", "EF"];
+const UNLOCKS = [
+  { ships: ["frigate", "ddA", "ddC"], weapons: ["G3", "TB"] },
+  { ships: ["ddB", "aegis"], weapons: ["MB", "MC", "TC"] },
+  { ships: ["cruiser", "cvA"], weapons: ["BA", "G4", "BOMB", "TD"] },
+  { ships: ["aegisB"], weapons: ["RB", "TORP"] },
+  { ships: ["bbA", "bbB"], weapons: ["BB", "BOMBB"] },
+  { ships: ["bbC", "cvB"], weapons: ["MD", "ME"] },
+  { ships: ["aegisC", "cvC"], weapons: ["RA", "SPG"] },
+  { ships: ["bbM", "sdA"], weapons: [] },
+  { ships: ["sdB"], weapons: [] },
+  { ships: [], weapons: [] },
+];
+const unlockMission = { ship: {}, weapon: {} };  // which mission (1-based) unlocks each item
+UNLOCKS.forEach((u, i) => { for (const k of u.ships) unlockMission.ship[k] = i + 1; for (const k of u.weapons) unlockMission.weapon[k] = i + 1; });
+
+function defaultLoadout(cls) {
+  let air = 0;
+  return SHIPS[cls].slots.map(sl => { if (sl.k === "air") return AIR_ORDER[air++ % AIR_ORDER.length]; if (sl.k === "fixed") return sl.w; const o = slotOptions(sl); return sl.def ? sl.def : sl.k === "gunmsl" || sl.k === "gun" ? sl.max : sl.k === "msl" ? (sl.max === "ME" ? "ME" : SHIPS[cls].radar ? "MC" : "MA") : sl.k === "tor" ? "TA" : o[o.length - 1]; });
+}
+
+/* =========================================================
+   SIMULATION — pure game state. No DOM / canvas in here.
+   Every ship is driven only by ship.input. For multiplayer later:
+   run step() on a server, send inputs up, broadcast state.
+   ========================================================= */
+const TAU = Math.PI * 2;
+const WORLD = 3200;
+const AIM_OFF_MAX = 120;
+const RIPPLE_GAP = 0.3; // seconds between mounts when holding the trigger in individual mode
+const ASSIST_ERR = 0; // persistent assist bias disabled (no manual correction any more)
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
+const approach = (v, t, s) => v < t ? Math.min(t, v + s) : Math.max(t, v - s);
+const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 0.5;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+const G = { ships: [], shells: [], proj: [], planes: [], events: [], score: 0, time: 0, nextId: 1, spawnT: 1.5, playerId: 0 };
+const emit = (type, d) => G.events.push(Object.assign({ type }, d));
+
+function buildShip(cls, loadout, team, x, y, h) {
+  const c = SHIPS[cls];
+  const s = { id: 0, cls, c, team, x, y, h, v: 0, evx: 0, evy: 0, rudder: 0, hp: c.hp, dest: null, alive: true, sink: 0,
+    target: null, lastHit: -99, bias: 0, biasTgt: -1, lastFire: {},
+    input: { moveTo: null, boost: false, dodge: false, fire: { gun: false, msl: false, tor: false, aa: false, cc: false }, manual: [], lock: 0, salvo: false, spread: 0, throttle: 1, autoAA: true, airOrders: [] },
+    mounts: [], air: [] };
+  c.slots.forEach((sl, i) => {
+    const w = WEAPONS[loadout[i]];
+    if (w.group === "air") {
+      s.air.push({ idx: s.air.length, w, wid: loadout[i], mx: sl.x * c.len, my: (sl.y || 0) * c.wid, slots: Array.from({ length: SQUAD_SIZE }, () => ({ st: "deck", t: 0 })),
+        order: "auto", autoLaunch: true, sortie: false, hadAir: false, launchT: rnd(0.5, 1.5), loiter: 0, attackNow: false, wp: null, mtgt: 0, tgtId: 0, goal: null });
+      return;
+    }
+    const rest = sl.y ? (sl.y > 0 ? Math.PI / 2 : -Math.PI / 2) : (sl.x >= 0 ? 0 : Math.PI);
+    s.mounts.push({ w, wid: loadout[i], mx: sl.x * c.len, my: (sl.y || 0) * c.wid, rest, a: h + rest, cd: rnd(0.3, 1) * w.reload, aligned: false, inRange: false, aim: null, assist: null, recoil: 0 });
+  });
+  s.groups = [...new Set(s.mounts.map(m => m.w.group))];
+  if (s.mounts.some(m => m.w.kind === "field")) s.field = { state: "up", hp: FIELD.hp, t: 0 };
+  if (c.radar || s.mounts.some(m => m.w.kind === "mc")) s.radar = { a: h, range: 760 * (c.radar || 1), half: 0.04, slew: c.radar ? 0.13 : 0.1 /* Aegis tracks a little faster and farther */, lock: false };
+  const gunR = Math.max(0, ...s.mounts.filter(m => m.w.group === "gun").map(m => m.w.range));
+  const mslR = Math.max(0, ...s.mounts.filter(m => m.w.group === "msl").map(m => m.w.range));
+  const torR = Math.max(0, ...s.mounts.filter(m => m.w.group === "tor").map(m => m.w.range));
+  s.mainRange = gunR || mslR || torR;
+  s.torRange = torR;
+  s.engage = gunR ? gunR * 0.72 : mslR ? mslR * 0.7 : Math.min(torR * 0.5, 480);
+  if (s.air.length) s.engage = Math.max(s.engage, 1100);  // carriers stand off
+  // anti-air fit; machine-gun mounts (機関砲) double as AA guns, which gives small boats some defence
+  const aa = Object.assign({ mg: 0, gun: 0, msl: 0 }, c.aa || {});
+  aa.mg += s.mounts.filter(m => m.w === WEAPONS.AC).length;
+  s.aa = aa.mg + aa.gun + aa.msl ? aa : null;
+  s.aaCd = { mg: 0, gun: 0, msl: 0 }; s.aaExp = 0; s.aaNear = Infinity;
+  return s;
+}
+function addShip(s) { s.id = G.nextId++; G.ships.push(s); return s; }
+const byId = id => G.ships.find(s => s.id === id);
+const mountPos = (s, m) => { const c = Math.cos(s.h), n = Math.sin(s.h); return { x: s.x + c * m.mx - n * m.my, y: s.y + n * m.mx + c * m.my }; };
+
+function lead(from, t, speed, mul, delay) {
+  let px = t.x, py = t.y;
+  for (let i = 0; i < 5; i++) {
+    const tt = (delay || 0) + Math.hypot(px - from.x, py - from.y) / speed;
+    px = t.x + t.evx * tt * mul; py = t.y + t.evy * tt * mul;
+  }
+  return { x: px, y: py };
+}
+
+function pickTarget(s) {
+  if (s.input.lock) {
+    const t = byId(s.input.lock);
+    if (t && t.alive && t.team !== s.team) return t;
+    s.input.lock = 0;
+  }
+  let best = null, bd = Infinity;
+  // automatic targeting only picks ships the player can see (input.view = visible world rect); a lock-on can still be off-screen
+  const v = s.input.view;
+  for (const o of G.ships) if (o.alive && o.team !== s.team) {
+    if (v && (o.x < v.x0 || o.x > v.x1 || o.y < v.y0 || o.y > v.y1)) continue;
+    const d = Math.hypot(o.x - s.x, o.y - s.y);
+    if (d < bd) { bd = d; best = o; }
+  }
+  return s.ai && s.ai.aggro ? best : bd < Math.max(900, s.mainRange * 1.4) ? best : null;
+}
+
+function updateShip(s, dt) {
+  const c = s.c;
+  if (s.input.moveTo) { s.dest = s.input.moveTo; s.input.moveTo = null; }
+  let targetSpeed = 0, rudder = 0;
+  if (s.dest) {
+    const dx = s.dest.x - s.x, dy = s.dest.y - s.y, d = Math.hypot(dx, dy);
+    const diff = angDiff(Math.atan2(dy, dx), s.h);
+    if (d < 14 || (d < c.len * 0.5 && Math.abs(diff) > 1.2)) s.dest = null;
+    else {
+      rudder = clamp(diff * 2.2, -1, 1);
+      targetSpeed = Math.min(c.spd, Math.sqrt(2 * c.acc * d)) * (1 - 0.5 * Math.min(1, Math.abs(diff) / Math.PI));
+      targetSpeed = Math.max(targetSpeed, c.spd * 0.18) * clamp(s.input.throttle ?? 1, 0.2, 1);
+    }
+  }
+  // boost (超ド級 only): more top speed and acceleration while fuel lasts; with no destination it pushes straight ahead
+  s.boostOn = false;
+  if (c.boost) {
+    if (s.fuel === undefined) { s.fuel = 100; s.dodgeT = 0; s.boostIdle = 9; }
+    if (s.input.boost && s.fuel > 0) {
+      s.boostOn = true; s.boostIdle = 0; s.fuel = Math.max(0, s.fuel - BOOST.burn * dt);
+      targetSpeed = (s.dest ? Math.max(targetSpeed, c.spd * 0.6) : c.spd) * BOOST.speed;
+    } else if ((s.boostIdle += dt) > 1) s.fuel = Math.min(100, s.fuel + BOOST.regen * dt);
+    if (s.input.dodge) {
+      s.input.dodge = false;
+      if (s.fuel >= BOOST.dodgeCost && s.dodgeT <= 0) {
+        // emergency dash straight ahead in the direction the ship is heading
+        s.fuel -= BOOST.dodgeCost; s.dodgeT = BOOST.dodgeT; s.dodgeA = s.h;
+        emit("dodge", { x: s.x, y: s.y, a: s.dodgeA });
+      }
+    }
+  }
+  s.v = approach(s.v, targetSpeed, (s.v < targetSpeed ? c.acc * (s.boostOn ? BOOST.accel : 1) : c.acc * 1.4) * dt);
+  const eff = 0.2 + 0.8 * Math.min(1, s.v / (c.spd * 0.5));
+  if (s.dodgeT > 0) {
+    s.dodgeT -= dt;
+    s.x = clamp(s.x + Math.cos(s.dodgeA) * BOOST.dodgeV * dt, -WORLD, WORLD);
+    s.y = clamp(s.y + Math.sin(s.dodgeA) * BOOST.dodgeV * dt, -WORLD, WORLD);
+  }
+  s.rudder = approach(s.rudder, rudder, dt * c.rud * 0.75);
+  s.h += s.rudder * c.turn * eff * dt;
+  s.x = clamp(s.x + Math.cos(s.h) * s.v * dt, -WORLD, WORLD);
+  s.y = clamp(s.y + Math.sin(s.h) * s.v * dt, -WORLD, WORLD);
+  const ek = 1 - Math.exp(-dt / 1.6);
+  s.evx += (Math.cos(s.h) * s.v - s.evx) * ek;
+  s.evy += (Math.sin(s.h) * s.v - s.evy) * ek;
+
+  s.target = pickTarget(s);
+  const tg = s.target;
+
+  // assist error (players only): slowly drifting left/right bias per target
+  if (!s.ai) {
+    const tid = tg ? tg.id : 0;
+    if (tid !== s.biasTgt) { s.biasTgt = tid; s.bias = clamp(gauss(), -1.8, 1.8); s.biasGoal = s.bias; s.biasT = rnd(5, 9); }
+    s.biasT -= dt;
+    if (s.biasT <= 0) { s.biasGoal = clamp(gauss(), -1.8, 1.8); s.biasT = rnd(5, 9); }
+    s.bias += (s.biasGoal - s.bias) * (1 - Math.exp(-dt / 2.5));
+  }
+
+  // radar for guided missiles (ミサイルC)
+  if (s.radar) {
+    const r = s.radar;
+    let want = r.a, d = Infinity;
+    if (tg) { want = Math.atan2(tg.y - s.y, tg.x - s.x); d = Math.hypot(tg.x - s.x, tg.y - s.y); }
+    r.a += clamp(angDiff(want, r.a), -r.slew * dt, r.slew * dt);
+    r.lock = !!tg && d <= r.range && Math.abs(angDiff(want, r.a)) <= r.half + Math.atan2(tg.c.len * 0.15, d);
+  }
+
+  const reloadMul = s.ai ? s.ai.reloadMul : 1;
+  const fire = s.input.fire;
+  for (const m of s.mounts) {
+    const w = m.w;
+    m.cd = Math.max(0, m.cd - dt);
+    m.recoil = Math.max(0, m.recoil - dt * 2.2);
+    const p = mountPos(s, m);
+    if (w.kind === "field") { m.pos = p; m.a = s.h; continue; }  // energy field: handled by updateField
+    if (m.chT > 0) {  // railgun charging: the turret is frozen and fires at the point locked when charging began
+      m.chT -= dt; m.pos = p;
+      if (m.chT <= 0) { m.chT = 0; m.aim = m.lockAim; launch(s, m, p, null); }
+      continue;
+    }
+    m.aim = null; m.assist = null; m.inRange = false; m.aligned = false;
+    if (w.kind === "mc") {
+      m.a = s.h;
+      m.aligned = !!(s.radar && s.radar.lock);
+      m.inRange = m.aligned;
+    } else {
+      let want = s.h + m.rest;
+      if (tg) {
+        const sp = w.kind === "shell" ? w.speed : (w.kind === "ma" || w.kind === "md" || w.kind === "me") ? w.vmax * 0.66 : w.kind === "mb" ? w.vmax : w.v;
+        const a = lead(p, tg, sp, w.kind === "me" ? 0 : s.ai ? s.ai.lead : 1, w.kind === "mb" ? w.delay : w.kind === "md" ? w.rise : (w.leadT ?? w.charge ?? 0));  // ミサイルE goes where the enemy IS
+        const la = Math.atan2(a.y - s.y, a.x - s.x), nx = -Math.sin(la), ny = Math.cos(la);
+        if (!s.ai) { const e = s.bias * Math.hypot(a.x - s.x, a.y - s.y) * ASSIST_ERR; a.x += nx * e; a.y += ny * e; }
+        m.aim = a;
+        want = Math.atan2(a.y - p.y, a.x - p.x);
+        m.inRange = Math.hypot(a.x - p.x, a.y - p.y) <= w.range;
+      }
+      if (w.kind === "mb" || w.kind === "md") { m.a = s.h; m.aligned = !!tg; }
+      else {
+        const diff = angDiff(want, m.a), mx = w.turn * dt;
+        m.a += clamp(diff, -mx, mx);
+        m.aligned = !!tg && Math.abs(angDiff(want, m.a)) < w.tol;
+      }
+    }
+    m.pos = p;
+  }
+  // fire pass. Salvo mode: a group fires only when every mount in it (machine guns excepted) is loaded, on target and in range.
+  const gate = salvoGate(s);
+  // salvo pattern: -1 = tight (集束), 0 = normal, 1 = spread out across the target (散布)
+  const sp = s.input.salvo ? clamp(s.input.spread || 0, -1, 1) : 0;
+  const pat = {};
+  for (const g of s.groups) pat[g] = { n: s.mounts.reduce((a, m) => a + (m.w.group === g && m.w.kind === "shell" && m.w !== WEAPONS.AC ? m.w.barrels : 0), 0), i: 0 };
+  // individual mode (players): one mount per trigger. Pick the ready mount that fired longest ago;
+  // holding the trigger ripples through the mounts at RIPPLE_GAP intervals.
+  const single = !s.input.salvo && !s.ai;
+  const pickM = {};
+  if (single) {
+    s.ripT = s.ripT || {};
+    for (const g of s.groups) {
+      if (!fire[g] || G.time - (s.ripT[g] ?? -9) < RIPPLE_GAP) continue;
+      let best = null;
+      for (const m of s.mounts) if (m.w.group === g && m.w !== WEAPONS.AC && m.cd <= 0 && m.aligned && m.inRange && (!best || (m.lastShot ?? -9) < (best.lastShot ?? -9))) best = m;
+      pickM[g] = best;
+    }
+  }
+  for (const m of s.mounts) {
+    const w = m.w;
+    if (w.kind === "field" || !fire[w.group] || m.cd > 0 || !m.aligned || !m.inRange) continue;
+    if (s.input.salvo && w !== WEAPONS.AC && !gate[w.group]) continue;
+    if (single && w !== WEAPONS.AC) { if (pickM[w.group] !== m) continue; s.ripT[w.group] = G.time; m.lastShot = G.time; }
+    if (w.charge) { m.chT = w.charge; m.lockAim = { x: m.aim.x, y: m.aim.y }; m.cd = w.charge + w.reload * reloadMul * rnd(0.95, 1.05); }
+    else { launch(s, m, m.pos, s.input.salvo && w !== WEAPONS.AC ? { sp, g: pat[w.group] } : null); m.cd = w.reload * reloadMul * rnd(0.95, 1.05); }
+    s.lastFire[w.group] = G.time;
+  }
+}
+function salvoGate(s) {
+  const gate = {};
+  for (const g of s.groups) gate[g] = s.mounts.every(m => m.w.group !== g || m.w === WEAPONS.AC || (m.cd <= 0 && m.aligned && m.inRange));
+  return gate;
+}
+
+function launch(s, m, p, pt) {
+  const w = m.w, a = m.aim;
+  const sp = pt ? pt.sp : 0;
+  const base = { owner: s.id, team: s.team, w, t: 0 };
+  if (w.kind === "shell") {
+    const dist = Math.hypot(a.x - p.x, a.y - p.y), shots = w.shots || w.barrels;
+    for (let b = 0; b < shots; b++) {
+      const side = (b - (shots - 1) / 2) * (w.bw + 0.9);
+      const sx = p.x + Math.cos(m.a) * w.barrel + Math.cos(m.a + Math.PI / 2) * side;
+      const sy = p.y + Math.sin(m.a) * w.barrel + Math.sin(m.a + Math.PI / 2) * side;
+      let spread = dist * w.disp + 3, ox = 0, oy = 0;
+      if (sp < 0) spread *= 0.4;
+      else if (sp > 0 && pt) {
+        // lay the salvo out as a line across the line of fire, alternating short/long
+        const n = pt.g.n, u = n > 1 ? pt.g.i / (n - 1) * 2 - 1 : 0;
+        const la = Math.atan2(a.y - p.y, a.x - p.x), half = Math.min(90, dist * 0.08), along = Math.min(45, dist * 0.04) * (pt.g.i % 2 ? 1 : -1);
+        ox = -Math.sin(la) * u * half + Math.cos(la) * along;
+        oy = Math.cos(la) * u * half + Math.sin(la) * along;
+        spread *= 0.6;
+      }
+      if (pt) pt.g.i++;
+      let tx = a.x + ox + gauss() * spread, ty = a.y + oy + gauss() * spread;
+      if (w.charge && !w.blast) {  // railgun: the slug keeps going along the line of fire to full range, hitting whatever is in the way
+        const d = Math.hypot(tx - sx, ty - sy) || 1;
+        tx = sx + (tx - sx) / d * w.range; ty = sy + (ty - sy) / d * w.range;
+      }
+      const T = Math.hypot(tx - sx, ty - sy) / w.speed + (w.charge ? 0 : rnd(0, 0.06));
+      G.shells.push({ owner: s.id, team: s.team, sx, sy, tx, ty, T, t: 0, dmg: w.dmg * rnd(0.85, 1.15), small: w === WEAPONS.AC, arc: !!w.arc, rail: !!w.charge, blast: w.blast, blastR: w.blastR, blast2: w.blast2, blastR2: w.blastR2, big: w.dmg >= 60 });
+    }
+    m.recoil = 1;
+    emit("muzzle", { x: p.x + Math.cos(m.a) * w.barrel, y: p.y + Math.sin(m.a) * w.barrel, a: m.a, size: w.tr });
+  } else if (w.kind === "ma") {
+    const ang = Math.atan2(a.y - p.y, a.x - p.x), nx = -Math.sin(ang), ny = Math.cos(ang);
+    for (let i = 0; i < w.count; i++) {
+      const o = (i - (w.count - 1) / 2) * 14 * (sp < 0 ? 0.3 : sp > 0 ? 2.4 : 1);
+      // unguided: each rocket is pointed at its own spot in the pattern at launch and flies straight
+      const ax = a.x + nx * o, ay = a.y + ny * o;
+      G.proj.push(Object.assign({ k: "ma", x: p.x, y: p.y, a: Math.atan2(ay - p.y, ax - p.x), v: w.v0, trav: 0, ax, ay, delay: i * 0.08 }, base));
+    }
+    emit("launch", { x: p.x, y: p.y });
+  } else if (w.kind === "md") {
+    const ang = Math.atan2(a.y - p.y, a.x - p.x);
+    for (let i = 0; i < w.count; i++)
+      G.proj.push(Object.assign({ k: "md", x: p.x + rnd(-3, 3), y: p.y + rnd(-3, 3), a: ang + (i - (w.count - 1) / 2) * 0.008 * (sp > 0 ? 2.5 : sp < 0 ? 0.4 : 1), v: w.v0, trav: 0, delay: i * w.gap, z: 0 }, base));
+    emit("launch", { x: p.x, y: p.y });
+  } else if (w.kind === "me") {
+    G.proj.push(Object.assign({ k: "me", x: p.x, y: p.y, a: Math.atan2(a.y - p.y, a.x - p.x), v: w.v0, ax: a.x, ay: a.y }, base));
+    emit("launch", { x: p.x, y: p.y });
+  } else if (w.kind === "mb") {
+    G.proj.push(Object.assign({ k: "mb", x: p.x, y: p.y, a: Math.atan2(a.y - p.y, a.x - p.x), v: 0, trav: 0 }, base));
+    emit("launch", { x: p.x, y: p.y });
+  } else if (w.kind === "mc") {
+    const tg = s.target;
+    for (let i = 0; i < w.count; i++)
+      G.proj.push(Object.assign({ k: "mc", x: p.x + (i - 0.5) * 4, y: p.y, a: Math.atan2(tg.y - p.y, tg.x - p.x) + (i - 0.5) * 0.5, v: 30, guided: false }, base));
+    emit("launch", { x: p.x, y: p.y });
+  } else if (w.kind === "tor") {
+    const ang = Math.atan2(a.y - p.y, a.x - p.x);
+    for (let i = 0; i < w.count; i++)
+      G.proj.push(Object.assign({ k: "tor", x: p.x, y: p.y, a: ang + (i - (w.count - 1) / 2) * w.spread * (sp < 0 ? 0.35 : sp > 0 ? 2.2 : 1), v: w.v, trav: 0 }, base));
+    emit("torlaunch", { x: p.x, y: p.y });
+  }
+}
+
+function hullHit(s, x, y, r) {
+  const dx = x - s.x, dy = y - s.y, ch = Math.cos(s.h), sh = Math.sin(s.h);
+  const lx = dx * ch + dy * sh, ly = -dx * sh + dy * ch;
+  const ax = s.c.len / 2 + r, ay = s.c.wid / 2 + r;
+  return (lx * lx) / (ax * ax) + (ly * ly) / (ay * ay) <= 1;
+}
+
+function damage(s, dmg, ownerId, x, y, big) {
+  if (!s.alive) return;
+  s.hp -= dmg; s.lastHit = G.time;
+  emit("hit", { x, y, id: s.id, big });
+  if (s.hp <= 0) {
+    s.alive = false; s.hp = 0;
+    emit("sunk", { x: s.x, y: s.y, id: s.id, name: s.c.name, len: s.c.len });
+    if (ownerId === G.playerId) G.score++;
+  }
+}
+
+// railgun slug: check the stretch of the line of fire covered this step; the first enemy ship on it is hit
+function railSweep(sh, k0, k1) {
+  const len = Math.hypot(sh.tx - sh.sx, sh.ty - sh.sy), n = Math.max(1, Math.ceil(len * (k1 - k0) / 4));
+  for (let i = 1; i <= n; i++) {
+    const k = k0 + (k1 - k0) * i / n, x = sh.sx + (sh.tx - sh.sx) * k, y = sh.sy + (sh.ty - sh.sy) * k;
+    for (const s of G.ships) if (s.alive && s.team !== sh.team && hullHit(s, x, y, sh.blast ? 6 : 2)) {
+      if (sh.blast) areaBlast(sh, x, y, s); else damage(s, sh.dmg, sh.owner, x, y, true);
+      sh.done = true; return true;
+    }
+  }
+  return false;
+}
+// charge cannon: direct hit takes the full damage, the rest by distance (inner ring / outer ring)
+function areaBlast(sh, x, y, hitS) {
+  emit("bigblast", { x, y, r: sh.blastR2 || sh.blastR });
+  if (hitS) damage(hitS, sh.dmg, sh.owner, x, y, true);
+  for (const s of G.ships) {
+    if (s === hitS || !s.alive || s.team === sh.team) continue;
+    if (hullHit(s, x, y, sh.blastR)) damage(s, sh.blast, sh.owner, x, y, true);
+    else if (sh.blastR2 && hullHit(s, x, y, sh.blastR2)) damage(s, sh.blast2, sh.owner, x, y, false);
+  }
+}
+function landShell(sh) {
+  let hitS = null;
+  for (const s of G.ships) {
+    if (!s.alive || s.team === sh.team) continue;
+    if (hullHit(s, sh.tx, sh.ty, sh.r ?? (sh.small ? 2 : 5))) { hitS = s; damage(s, sh.dmg, sh.owner, sh.tx, sh.ty, !!sh.big); break; }
+  }
+  if (sh.blast) {  // 自走砲: blast damages every other enemy ship close to the impact
+    emit("blast", { x: sh.tx, y: sh.ty, r: sh.blastR * 1.6 });
+    for (const s of G.ships) if (s !== hitS && s.alive && s.team !== sh.team && hullHit(s, sh.tx, sh.ty, sh.blastR)) damage(s, sh.blast, sh.owner, sh.tx, sh.ty, false);
+  }
+  if (!hitS) emit("splash", { x: sh.tx, y: sh.ty, small: sh.small });
+}
+
+function enemyHit(pr, r) {
+  for (const s of G.ships) if (s.alive && s.team !== pr.team && hullHit(s, pr.x, pr.y, r)) return s;
+  return null;
+}
+function blast(pr, r, dmg) {
+  emit("blast", { x: pr.x, y: pr.y, r });
+  for (const s of G.ships) if (s.alive && s.team !== pr.team && hullHit(s, pr.x, pr.y, r * 0.6)) damage(s, dmg, pr.owner, pr.x, pr.y, false);
+}
+
+function stepProj(pr, dt) {
+  const w = pr.w;
+  pr.t += dt;
+  if (pr.k === "ma") {
+    if (pr.t < pr.delay) return;
+    const lt = pr.t - pr.delay;
+    pr.v = Math.min(w.vmax, pr.v + (lt > 0.45 ? w.acc : 25) * dt);
+    pr.x += Math.cos(pr.a) * pr.v * dt; pr.y += Math.sin(pr.a) * pr.v * dt; pr.trav += pr.v * dt;
+    if (lt > 0.35) { const s = enemyHit(pr, w.fuse); if (s) { blast(pr, w.blast, w.dmg); pr.done = true; return; } }
+    if (pr.trav > w.range) { blast(pr, w.blast, w.dmg); pr.done = true; }
+  } else if (pr.k === "mb") {
+    if (pr.t < w.delay) return;
+    pr.v = w.vmax;
+    for (let i = 0; i < 3; i++) {
+      pr.x += Math.cos(pr.a) * pr.v * dt / 3; pr.y += Math.sin(pr.a) * pr.v * dt / 3; pr.trav += pr.v * dt / 3;
+      const s = enemyHit(pr, 2);
+      if (s) { damage(s, w.dmg, pr.owner, pr.x, pr.y, true); pr.done = true; return; }
+    }
+    if (pr.trav > w.range) { emit("splash", { x: pr.x, y: pr.y }); pr.done = true; }
+  } else if (pr.k === "mc") {
+    pr.v = Math.min(w.vmax, pr.v + (pr.t < 0.6 ? 60 : 180) * dt);
+    const o = byId(pr.owner);
+    pr.guided = !!(o && o.alive && o.radar && o.radar.lock && o.target);
+    if (pr.guided && pr.t > 0.4) {
+      const tg = o.target, d = Math.hypot(tg.x - pr.x, tg.y - pr.y), tt = d / pr.v * 0.5;
+      const want = Math.atan2(tg.y + tg.evy * tt - pr.y, tg.x + tg.evx * tt - pr.x);
+      pr.a += clamp(angDiff(want, pr.a), -w.steer * dt, w.steer * dt);
+    }
+    pr.x += Math.cos(pr.a) * pr.v * dt; pr.y += Math.sin(pr.a) * pr.v * dt;
+    if (pr.t > 0.5) { const s = enemyHit(pr, 3); if (s) { damage(s, w.dmg, pr.owner, pr.x, pr.y, false); emit("blast", { x: pr.x, y: pr.y, r: 18 }); pr.done = true; return; } }
+    if (pr.t > w.life) { emit("splash", { x: pr.x, y: pr.y }); pr.done = true; }
+  } else if (pr.k === "tor") {
+    if (w.home) {
+      let best = null, bd = 520;
+      for (const s of G.ships) if (s.alive && s.team !== pr.team) {
+        const d = Math.hypot(s.x - pr.x, s.y - pr.y);
+        if (d < bd && Math.abs(angDiff(Math.atan2(s.y - pr.y, s.x - pr.x), pr.a)) < 0.9) { bd = d; best = s; }
+      }
+      if (best) pr.a += clamp(angDiff(Math.atan2(best.y - pr.y, best.x - pr.x), pr.a), -w.home * dt, w.home * dt);
+    }
+    pr.x += Math.cos(pr.a) * pr.v * dt; pr.y += Math.sin(pr.a) * pr.v * dt; pr.trav += pr.v * dt;
+    // torpedoes hit ANY ship, including the one that fired them (once they have cleared its hull)
+    if (pr.t > 0.8) {
+      let hitS = null;
+      for (const s of G.ships) {
+        if (!s.alive) continue;
+        if (s.id === pr.owner && !pr.cleared) { if (!hullHit(s, pr.x, pr.y, 3)) pr.cleared = true; continue; }
+        if (hullHit(s, pr.x, pr.y, 2)) { hitS = s; break; }
+      }
+      if (hitS) { damage(hitS, w.dmg, hitS.id === pr.owner ? 0 : pr.owner, pr.x, pr.y, true); emit("torhit", { x: pr.x, y: pr.y }); pr.done = true; return; }
+    }
+    if (pr.trav > w.range) pr.done = true;
+  } else if (pr.k === "md") {
+    if (pr.t < pr.delay) return;               // waiting in its cell for its turn
+    const lt = pr.t - pr.delay;
+    if (lt < w.rise) { pr.z = lt / w.rise; return; }  // vertical launch
+    pr.z = 1;
+    pr.v = Math.min(w.vmax, pr.v + w.acc * dt);
+    const o = byId(pr.owner), tg = o && o.alive ? o.target : null;
+    // slight homing, only while the shooter's yellow radar beam is on the target
+    if (tg && tg.alive && o.radar && o.radar.lock) pr.a += clamp(angDiff(Math.atan2(tg.y - pr.y, tg.x - pr.x), pr.a), -w.home * dt, w.home * dt);
+    pr.x += Math.cos(pr.a) * pr.v * dt; pr.y += Math.sin(pr.a) * pr.v * dt; pr.trav += pr.v * dt;
+    const s = enemyHit(pr, 3);
+    if (s) { damage(s, w.dmg, pr.owner, pr.x, pr.y, false); emit("blast", { x: pr.x, y: pr.y, r: 14 }); pr.done = true; return; }
+    if (pr.trav > w.range) { emit("splash", { x: pr.x, y: pr.y, small: true }); pr.done = true; }
+  } else if (pr.k === "me") {
+    pr.v = Math.min(w.vmax, pr.v + w.acc * dt);
+    const rem = Math.hypot(pr.ax - pr.x, pr.ay - pr.y);
+    if (rem <= pr.v * dt) { pr.x = pr.ax; pr.y = pr.ay; blast(pr, w.blastR, w.dmg); pr.done = true; return; }  // explodes on arrival
+    pr.x += Math.cos(pr.a) * pr.v * dt; pr.y += Math.sin(pr.a) * pr.v * dt;
+  } else if (pr.k === "aam") {
+    pr.v = Math.min(w.speed, pr.v + 400 * dt);
+    const tg = G.planes.find(q => q.id === pr.pid && q.alive);
+    if (tg) {
+      pr.a += clamp(angDiff(Math.atan2(tg.y - pr.y, tg.x - pr.x), pr.a), -4.5 * dt, 4.5 * dt);
+      if (Math.hypot(tg.x - pr.x, tg.y - pr.y) < 14) { damagePlane(tg, w.dmg); emit("flak", { x: pr.x, y: pr.y }); pr.done = true; return; }
+    }
+    pr.x += Math.cos(pr.a) * pr.v * dt; pr.y += Math.sin(pr.a) * pr.v * dt;
+    if (pr.t > 6) pr.done = true;
+  }
+}
+
+/* ---------- anti-air: hurts planes only ---------- */
+function damagePlane(pl, dmg) {
+  if (!pl.alive) return;
+  pl.hp -= dmg; pl.hitT = G.time;
+  if (pl.hp <= 0) { pl.alive = false; pl.slot.st = "rebuild"; pl.slot.t = REBUILD_T; emit("planeDown", { x: pl.x, y: pl.y, team: pl.team }); }
+}
+function aaRange(aa) { return aa.msl ? AA.msl.range : aa.gun ? AA.gun.range : AA.mg.range; }
+function updateAA(s, dt) {
+  if (!s.aa) return;
+  let nd = Infinity;
+  for (const pl of G.planes) if (pl.alive && pl.team !== s.team) nd = Math.min(nd, Math.hypot(pl.x - s.x, pl.y - s.y));
+  s.aaNear = nd;
+  s.aaExp = nd < aaRange(s.aa) ? s.aaExp + dt : 0;
+  const manual = !!s.input.fire.aa, auto = !!s.input.autoAA && s.aaExp >= AA_AUTO_DELAY;
+  const rate = manual ? 1 : AA_AUTO_RATE;
+  for (const k of ["mg", "gun", "msl"]) {
+    const n = s.aa[k]; if (!n) continue;
+    s.aaCd[k] = Math.max(0, s.aaCd[k] - dt);
+    if ((!manual && !auto) || s.aaCd[k] > 0) continue;
+    const A = AA[k];
+    let tg = null, td = A.range;
+    for (const pl of G.planes) if (pl.alive && pl.team !== s.team) { const d = Math.hypot(pl.x - s.x, pl.y - s.y); if (d < td) { td = d; tg = pl; } }
+    if (!tg) continue;
+    s.aaCd[k] = A.interval / (n * rate);
+    if (k === "mg") {
+      const hit = Math.random() < A.hit * (1 - td / A.range * 0.5);
+      emit("tracer", { x1: s.x + rnd(-s.c.len / 3, s.c.len / 3), y1: s.y + rnd(-4, 4), x2: tg.x + (hit ? 0 : gauss() * 16), y2: tg.y + (hit ? 0 : gauss() * 16) });
+      if (hit) damagePlane(tg, A.dmg);
+    } else if (k === "gun") {
+      const bx = tg.x + Math.cos(tg.h) * tg.v * 0.2 + gauss() * A.sigma, by = tg.y + Math.sin(tg.h) * tg.v * 0.2 + gauss() * A.sigma;
+      emit("flak", { x: bx, y: by });
+      for (const pl of G.planes) if (pl.alive && pl.team !== s.team && Math.hypot(pl.x - bx, pl.y - by) < A.burst) damagePlane(pl, A.dmg);
+    } else {
+      G.proj.push({ k: "aam", owner: s.id, team: s.team, w: A, t: 0, x: s.x, y: s.y, a: Math.atan2(tg.y - s.y, tg.x - s.x), v: 80, pid: tg.id });
+      emit("launch", { x: s.x, y: s.y });
+    }
+  }
+}
+
+/* ---------- carrier air wings ---------- */
+function airTarget(s, sq) {
+  const ok = t => t && t.alive && t.team !== s.team;
+  let t = byId(sq.mtgt); if (ok(t)) return t; sq.mtgt = 0;
+  t = byId(s.input.lock); if (ok(t)) return t;
+  let best = null, bd = AIR_RANGE;
+  for (const o of G.ships) if (ok(o)) { const d = Math.hypot(o.x - s.x, o.y - s.y); if (d < bd) { bd = d; best = o; } }
+  return best;
+}
+const sqPlanes = (s, sq) => G.planes.filter(p => p.alive && p.owner === s.id && p.sq === sq.idx);
+function launchPlane(s, sq, sl) {
+  sl.st = "air";
+  G.planes.push({ id: G.nextId++, owner: s.id, team: s.team, sq: sq.idx, slot: sl, w: sq.w, hp: sq.w.hp, alive: true,
+    x: s.x + Math.cos(s.h) * sq.mx - Math.sin(s.h) * (sq.my || 0), y: s.y + Math.sin(s.h) * sq.mx + Math.cos(s.h) * (sq.my || 0), h: s.h, v: Math.max(60, s.v + 40), alt: 0, state: "form", t: 0 });
+}
+function updateAir(s, dt) {
+  for (const o of s.input.airOrders) {
+    const sq = s.air[o.sq]; if (!sq) continue;
+    if (o.type === "launch") { sq.sortie = true; sq.order = "auto"; continue; }
+    if (o.type === "autoLaunch") { sq.autoLaunch = !!o.v; continue; }
+    if (o.type === "wp") { sq.wp = { x: o.x, y: o.y }; sq.order = "auto"; sq.loiter = 0; }
+    else if (o.type === "tgt") { sq.mtgt = o.id; sq.wp = null; sq.order = "auto"; sq.loiter = 0; }
+    else if (o.type === "attack") { sq.attackNow = true; sq.order = "auto"; }
+    else if (o.type === "drop") {  // manual bomb release for every bomber of the squadron that is on its run
+      const runs = sqPlanes(s, sq).filter(p => p.state === "attack" && p.w.ptype === "bomb");
+      if (runs.length) for (const p of runs) p.dropNow = true; else { sq.attackNow = true; sq.order = "auto"; }
+    }
+    else if (o.type === "recall") { sq.order = "recall"; sq.wp = null; sq.attackNow = false; }
+  }
+  s.input.airOrders.length = 0;
+  for (const sq of s.air) {
+    for (const sl of sq.slots) if ((sl.st === "rearm" || sl.st === "rebuild") && (sl.t -= dt) <= 0) { sl.st = "deck"; sl.t = 0; }
+    const tgt = airTarget(s, sq);
+    sq.tgtId = tgt ? tgt.id : 0;
+    const planes = sqPlanes(s, sq);
+    if (sq.order === "recall" && !planes.length) sq.order = "auto";
+    // a manual sortie lasts until every plane of it is back on board
+    if (planes.length) sq.hadAir = true; else if (sq.hadAir) { sq.hadAir = false; sq.sortie = false; }
+    sq.launchT -= dt;
+    // auto-launch squadrons take off when there is something to attack; manual ones only on a launch order
+    if (sq.order === "auto" && (sq.autoLaunch ? (tgt || sq.wp) : sq.sortie) && sq.launchT <= 0) {
+      const sl = sq.slots.find(x => x.st === "deck");
+      if (sl) { launchPlane(s, sq, sl); sq.launchT = 0.6; }
+    }
+    const form = planes.filter(p => p.state === "form");
+    if (!form.length) { sq.loiter = 0; sq.attackNow = false; continue; }
+    if (sq.order === "recall" || (!tgt && !sq.wp)) { for (const p of form) p.state = "rtb"; sq.goal = null; continue; }
+    let goal = sq.wp;
+    if (!goal) {  // holding point on the carrier's side of the target
+      const d = Math.hypot(s.x - tgt.x, s.y - tgt.y) || 1;
+      goal = { x: tgt.x + (s.x - tgt.x) / d * 480, y: tgt.y + (s.y - tgt.y) / d * 480 };
+    }
+    sq.goal = goal;
+    if (Math.hypot(goal.x - form[0].x, goal.y - form[0].y) < 220) sq.loiter += dt;
+    if (tgt && (sq.attackNow || sq.loiter > (s.ai ? 2.5 : AUTO_ATK_T))) {
+      form.forEach((p, k) => { p.state = "attack"; p.phase = 0; p.delay = k * 0.4; p.tid = tgt.id; });
+      sq.loiter = 0; sq.wp = null;
+    }
+    sq.attackNow = false;
+  }
+}
+function bombImpact(pl) { const r = pl.v * BOMB_FALL * BOMB_CARRY; return { x: pl.x + Math.cos(pl.h) * r, y: pl.y + Math.sin(pl.h) * r }; }
+function dropBombs(pl, s, w) {
+  const c = bombImpact(pl);
+  for (let b = 0; b < w.bombs; b++) {
+    const side = (b - (w.bombs - 1) / 2) * 10;
+    const tx = c.x - Math.sin(pl.h) * side + gauss() * 8, ty = c.y + Math.cos(pl.h) * side + gauss() * 8;
+    G.shells.push({ owner: s.id, team: s.team, sx: pl.x, sy: pl.y, tx, ty, T: BOMB_FALL, t: 0, dmg: w.dmg, bomb: true, r: w.bombR, big: w.bombs === 1 });
+  }
+  pl.dropNow = false; pl.state = "egress"; pl.t2 = 1.6;
+}
+function steerPlane(pl, want, dt, mul) { const r = pl.w.turn * (mul || 1) * dt; pl.h += clamp(angDiff(want, pl.h), -r, r); }
+function stepPlane(pl, dt) {
+  const s = byId(pl.owner), w = pl.w;
+  if (!s || !s.alive) { pl.alive = false; emit("planeDown", { x: pl.x, y: pl.y, team: pl.team }); return; }
+  const sq = s.air[pl.sq];
+  pl.t += dt;
+  let vWant = w.v, altWant = 1;
+  if (pl.state === "form") {
+    const form = sqPlanes(s, sq).filter(p => p.state === "form");
+    const k = form.indexOf(pl), ld = form[0];
+    const goal = sq.goal || { x: s.x, y: s.y };
+    if (k <= 0) {
+      const d = Math.hypot(goal.x - pl.x, goal.y - pl.y);
+      let want = Math.atan2(goal.y - pl.y, goal.x - pl.x);
+      if (d < 180) want += 1.25;  // orbit the holding point
+      steerPlane(pl, want, dt);
+    } else {
+      const off = [[0, 0], [-22, -20], [-22, 20], [-44, 0], [-44, -40]][Math.min(k, 4)];
+      const ch = Math.cos(ld.h), sh = Math.sin(ld.h);
+      const fx = ld.x + ch * off[0] - sh * off[1], fy = ld.y + sh * off[0] + ch * off[1];
+      const d = Math.hypot(fx - pl.x, fy - pl.y);
+      steerPlane(pl, d > 6 ? Math.atan2(fy - pl.y, fx - pl.x) : ld.h, dt, 1.6);
+      vWant = ld.v * clamp(0.85 + d / 60, 0.85, 1.35);
+    }
+  } else if (pl.state === "attack") {
+    const tg = byId(pl.tid);
+    pl.atkT = (pl.atkT || 0) + dt;
+    if (pl.dropNow && w.ptype === "bomb") dropBombs(pl, s, w);
+    else if (!tg || !tg.alive) pl.state = "rtb";
+    else if (pl.delay > 0) { pl.delay -= dt; steerPlane(pl, Math.atan2(tg.y - pl.y, tg.x - pl.x), dt); }
+    else if (w.ptype === "bomb") {
+      // fly at where the target will be when the bomb lands; a released bomb carries forward BOMB_CARRY of the plane's speed
+      const lt = { x: tg.x + tg.evx * BOMB_FALL, y: tg.y + tg.evy * BOMB_FALL };
+      const want = Math.atan2(lt.y - pl.y, lt.x - pl.x), d = Math.hypot(lt.x - pl.x, lt.y - pl.y);
+      steerPlane(pl, want, dt);
+      // the squadron the player is flying waits for the player's release (with a long safety timeout)
+      const manual = !s.ai && (s.input.manual || []).includes(pl.sq) && pl.atkT < 20;
+      if (!manual && d < pl.v * BOMB_FALL * BOMB_CARRY && Math.abs(angDiff(want, pl.h)) < 0.18) dropBombs(pl, s, w);
+    } else if (w.ptype === "torp") {
+      altWant = 0.35;
+      const L = lead(pl, tg, AIR_TORP.v, 1, 0);
+      const want = Math.atan2(L.y - pl.y, L.x - pl.x), d = Math.hypot(L.x - pl.x, L.y - pl.y);
+      steerPlane(pl, want, dt);
+      if (d < 330 && Math.abs(angDiff(want, pl.h)) < (d < 180 ? 0.35 : 0.15)) {
+        G.proj.push({ k: "tor", owner: s.id, team: s.team, w: AIR_TORP, t: 0, x: pl.x, y: pl.y, a: pl.h, v: AIR_TORP.v, trav: 0, cleared: true });
+        emit("torlaunch", { x: pl.x, y: pl.y });
+        pl.state = "egress"; pl.t2 = 1.4;
+      }
+    } else {  // strafer: lock heading (visible), creep in, then dash and strafe
+      const d = Math.hypot(tg.x - pl.x, tg.y - pl.y);
+      if (pl.phase === 0) {
+        steerPlane(pl, Math.atan2(tg.y - pl.y, tg.x - pl.x), dt);
+        if (d < 430) { const L = lead(pl, tg, 300, 1, 1.0); pl.lockA = Math.atan2(L.y - pl.y, L.x - pl.x); pl.phase = 1; pl.t2 = 1.0; }
+      } else if (pl.phase === 1) {
+        vWant = 90; steerPlane(pl, pl.lockA, dt, 3);
+        if ((pl.t2 -= dt) <= 0) { pl.phase = 2; pl.t2 = 1.4; pl.h = pl.lockA; pl.v = 300; pl.gunT = 0; }
+      } else {
+        vWant = 300; pl.h = pl.lockA; altWant = 0.6;
+        if ((pl.gunT -= dt) <= 0) {
+          pl.gunT = 0.06;
+          for (const side of [-5, 5]) {  // twin wing guns
+            const tx = pl.x + Math.cos(pl.h) * 50 - Math.sin(pl.h) * side + gauss() * 5, ty = pl.y + Math.sin(pl.h) * 50 + Math.cos(pl.h) * side + gauss() * 5;
+            G.shells.push({ owner: s.id, team: s.team, sx: pl.x, sy: pl.y, tx, ty, T: 0.16, t: 0, dmg: w.dmg, small: true, r: 4 });
+          }
+        }
+        if ((pl.t2 -= dt) <= 0) { pl.state = "egress"; pl.t2 = 1.2; }
+      }
+    }
+  } else if (pl.state === "egress") {
+    if ((pl.t2 -= dt) <= 0) pl.state = "rtb";
+  } else if (pl.state === "rtb") {
+    const d = Math.hypot(s.x - pl.x, s.y - pl.y);
+    steerPlane(pl, Math.atan2(s.y - pl.y, s.x - pl.x), dt, d < 160 ? 2.2 : 1);
+    if (d < 160) { vWant = Math.max(70, s.v + 45); altWant = Math.max(0.15, d / 160); }
+    if (d < 24) { pl.alive = false; pl.slot.st = "rearm"; pl.slot.t = REARM_T; return; }
+  }
+  if (Math.abs(pl.x) > WORLD + 150 || Math.abs(pl.y) > WORLD + 150) steerPlane(pl, Math.atan2(-pl.y, -pl.x), dt, 2);
+  pl.v = approach(pl.v, vWant, 150 * dt);
+  pl.alt = approach(pl.alt, altWant, dt * 0.9);
+  pl.x += Math.cos(pl.h) * pl.v * dt; pl.y += Math.sin(pl.h) * pl.v * dt;
+}
+
+/* ---------- 超ド級B: energy field ---------- */
+// state: up (shield on) → broken → cool (40s) → ready → charge (5s, press 5) → burst → up again
+function updateField(s, dt) {
+  const f = s.field, m = s.mounts.find(q => q.w.kind === "field");
+  if (f.state === "up") {
+    const R = FIELD.radius, hit = (x, y, dmg) => { f.hp -= dmg; emit("shieldHit", { x, y }); };
+    for (const sh of G.shells) {
+      if (sh.done || sh.team === s.team) continue;
+      const k = Math.min(1, sh.t / sh.T), x = sh.sx + (sh.tx - sh.sx) * k, y = sh.sy + (sh.ty - sh.sy) * k;
+      if (Math.hypot(x - s.x, y - s.y) <= R) { sh.done = true; hit(x, y, (sh.dmg || 0) + (sh.blast || 0)); }
+    }
+    for (const pr of G.proj) {
+      if (pr.done || pr.team === s.team || pr.k === "aam") continue;
+      if (Math.hypot(pr.x - s.x, pr.y - s.y) <= R) { pr.done = true; hit(pr.x, pr.y, pr.w.dmg || 10); }
+    }
+    for (const pl of G.planes) {
+      if (!pl.alive || pl.team === s.team) continue;
+      if (Math.hypot(pl.x - s.x, pl.y - s.y) <= R) { damagePlane(pl, 1e9); hit(pl.x, pl.y, 15); }
+    }
+    if (f.hp <= 0) { f.hp = 0; f.state = "cool"; f.t = FIELD.cool; emit("shieldBreak", { x: s.x, y: s.y, r: R }); }
+  } else if (f.state === "cool") {
+    if ((f.t -= dt) <= 0) f.state = "ready";
+  } else if (f.state === "ready") {
+    if (s.input.fire.cc) { f.state = "charge"; f.t = FIELD.charge; }
+  } else if (f.state === "charge") {
+    if ((f.t -= dt) <= 0) {
+      emit("bigblast", { x: s.x, y: s.y, r: FIELD.blastR });
+      for (const o of G.ships) if (o.alive && o.team !== s.team && Math.hypot(o.x - s.x, o.y - s.y) - o.c.len * 0.35 <= FIELD.blastR) damage(o, FIELD.blastDmg, s.id, o.x, o.y, true);
+      for (const pl of G.planes) if (pl.alive && pl.team !== s.team && Math.hypot(pl.x - s.x, pl.y - s.y) <= FIELD.blastR) damagePlane(pl, 1e9);
+      f.state = "up"; f.hp = FIELD.hp;
+    }
+  }
+  // the button ring shows the cooldown
+  if (m) m.cd = f.state === "cool" ? f.t : f.state === "ready" ? 0 : FIELD.cool;
+}
+
+function aiThink(s, dt) {
+  const ai = s.ai;
+  ai.t -= dt; ai.dodge -= dt; ai.thrT -= dt;
+  if (ai.boostT !== undefined && (ai.boostT -= dt) <= 0) { s.input.boost = false; ai.boostT = undefined; }
+  const tg = s.target || pickTarget(s);
+  if (ai.thrT <= 0) { ai.thrT = rnd(1.5, 4); s.input.throttle = Math.random() < 0.4 ? rnd(0.3, 0.55) : rnd(0.85, 1); }
+  if (ai.t <= 0) {
+    ai.t = rnd(2, 4.5);
+    if (Math.random() < 0.15) ai.side *= -1;
+    if (tg) {
+      const pref = s.engage * (ai.aggro ? rnd(0.45, 0.7) : rnd(0.8, 1.15));  // mission enemies press in close
+      const ang = Math.atan2(s.y - tg.y, s.x - tg.x) + ai.side * rnd(0.3, 0.9);
+      s.input.moveTo = { x: tg.x + Math.cos(ang) * pref, y: tg.y + Math.sin(ang) * pref };
+    } else s.input.moveTo = { x: s.x + rnd(-500, 500), y: s.y + rnd(-500, 500) };
+  }
+  if (ai.dodge <= 0) {
+    let threat = false;
+    for (const sh of G.shells) {
+      if (sh.team === s.team || sh.T - sh.t < 1) continue;
+      if (Math.hypot(sh.tx - s.x, sh.ty - s.y) < s.c.len * 1.3) { threat = true; break; }
+    }
+    if (!threat) for (const pr of G.proj) {
+      if (pr.team === s.team || (pr.k !== "tor" && pr.k !== "mb")) continue;
+      const rx = s.x - pr.x, ry = s.y - pr.y, ca = Math.cos(pr.a), sa = Math.sin(pr.a);
+      const along = rx * ca + ry * sa, perp = Math.abs(rx * sa - ry * ca);
+      if (along > 0 && along < 650 && perp < s.c.len * 0.8) { threat = true; break; }
+    }
+    if (threat) {
+      ai.dodge = 2.5 * (DIFF[G.diff] || DIFF.hard).dodgeCd;
+      if (s.c.boost && s.fuel > 50 && Math.random() < ai.skill) { s.input.boost = true; ai.boostT = rnd(1, 2); }
+      if (Math.random() < ai.skill) {
+        if (Math.random() < 0.65) {
+          const turn = (Math.random() < .5 ? -1 : 1) * rnd(0.9, 1.6);
+          s.input.moveTo = { x: s.x + Math.cos(s.h + turn) * 300, y: s.y + Math.sin(s.h + turn) * 300 };
+          ai.t = rnd(2, 3);
+        } else { s.input.throttle = s.v > s.c.spd * 0.6 ? rnd(0.2, 0.4) : 1; ai.thrT = rnd(2, 3); }
+      }
+    }
+  }
+  // radar lock warning: run at full speed across the beam to break the lock
+  ai.radT = (ai.radT || 0) - dt;
+  if (ai.radT <= 0) {
+    for (const o of G.ships) {
+      if (!o.alive || o.team === s.team || !o.radar || !o.radar.lock || o.target !== s) continue;
+      ai.radT = rnd(1.0, 1.6);
+      const beam = Math.atan2(s.y - o.y, s.x - o.x);
+      const side = angDiff(s.h, beam) >= 0 ? 1 : -1;
+      const dir = beam + side * Math.PI / 2;
+      s.input.moveTo = { x: s.x + Math.cos(dir) * 500, y: s.y + Math.sin(dir) * 500 };
+      s.input.throttle = 1; ai.thrT = 2.5; ai.t = 2.5;
+      break;
+    }
+  }
+  const d = tg ? Math.hypot(tg.x - s.x, tg.y - s.y) : Infinity;
+  s.input.fire.gun = !!tg;
+  s.input.fire.msl = !!tg;
+  s.input.fire.tor = !!tg && d < s.torRange * 0.7;
+  s.input.fire.cc = !!tg && (!s.field || d < FIELD.blastR * 0.9);  // charge cannon whenever possible; field burst when the target is inside it
+}
+
+function spawnEnemy(px, py) {
+  const sc = G.score;
+  const maxTier = sc < 3 ? 0 : sc < 7 ? 1 : sc < 12 ? 2 : 3;
+  const r = Math.random();
+  const tier = Math.max(0, maxTier - (r < 0.5 ? 0 : r < 0.8 ? 1 : 2));
+  let cls = pick(SPAWN_TIERS[tier]);
+  if (sc >= 25 && Math.random() < 0.06 && !G.ships.some(o => o.alive && o.team === 1 && o.cls === "sdB")) cls = "sdB";
+  else if (sc >= 20 && Math.random() < 0.08 && !G.ships.some(o => o.alive && o.team === 1 && o.cls === "sdA")) cls = "sdA";
+  // at most one enemy carrier at a time
+  if (SHIPS[cls].carrier && G.ships.some(o => o.alive && o.team === 1 && o.c.carrier)) cls = pick(SPAWN_TIERS[tier].filter(k => !SHIPS[k].carrier));
+  const ang = Math.random() * TAU, d = rnd(1150, 1450);
+  return makeEnemy(cls, clamp(sc / 18, 0, 1), px + Math.cos(ang) * d, py + Math.sin(ang) * d, px, py, Math.min(0.5, sc * 0.02), Math.min(0.4, sc * 0.025));
+}
+// power 0..1 decides how strong the random loadout is; skillUp / reloadUp make the AI sharper
+function makeEnemy(cls, power, x, y, px, py, skillUp, reloadUp) {
+  const load = SHIPS[cls].slots.map(sl => {
+    const o = slotOptions(sl);
+    const idx = clamp(Math.floor(o.length * (Math.random() * (0.55 + power * 0.6) + power * 0.25)), 0, o.length - 1);
+    return o[idx];
+  });
+  x = clamp(x, -WORLD + 100, WORLD - 100); y = clamp(y, -WORLD + 100, WORLD - 100);
+  const s = addShip(buildShip(cls, load, 1, x, y, Math.atan2(py - y, px - x) + rnd(-0.6, 0.6)));
+  s.ai = { t: 0, side: Math.random() < .5 ? -1 : 1, lead: rnd(0.55, 1.05), dodge: 0, skill: Math.min(0.95, rnd(0.45, 0.8) + skillUp) * (DIFF[G.diff] || DIFF.hard).skill, reloadMul: Math.max(1.0, 1.4 - reloadUp), thrT: rnd(1, 3) };
+  return s;
+}
+
+/* ---------- mission waves ---------- */
+function spawnWave(mi, wi, p) {
+  const M = MISSIONS[mi], W = M.waves[wi];
+  const power = clamp(mi / (MISSIONS.length - 1), 0, 1);
+  const esc = W.boss ? bossEscort(M, mi) : null;
+  const units = esc ? W.u.concat(N(esc.n, esc.tier)) : W.u;
+  const base = Math.random() * TAU, n = units.length;
+  let carriers = units.filter(x => typeof x === "string" && SHIPS[x].carrier).length;
+  units.forEach((x, k) => {
+    let cls = typeof x === "string" ? x : pick(CLASS_TIERS[x]);
+    if (k >= W.u.length && SHIPS[cls].carrier) cls = pick(CLASS_TIERS[x].filter(c => !SHIPS[c].carrier));  // escorts are never carriers
+    else if (typeof x !== "string" && SHIPS[cls].carrier && carriers++ >= 1) cls = pick(CLASS_TIERS[x].filter(c => !SHIPS[c].carrier));  // random escorts never add a 2nd carrier
+    const tier = CLASS_TIERS.findIndex(l => l.includes(cls));
+    const weak = W.swarm || tier < M.t || k >= W.u.length;  // 雑魚 (incl. boss escorts)
+    const a = W.swarm ? base + k * TAU / n + rnd(-0.15, 0.15) : base + (k - (n - 1) / 2) * 0.3, d = rnd(1150, 1350);
+    const en = makeEnemy(cls, weak ? 0 : Math.min(1, power + (W.boss ? 0.15 : 0)), p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, p.x, p.y, mi * 0.045, mi * 0.04);
+    en.ai.aggro = true; en.ai.t = 0;
+  });
+}
+function missionStep(p, dt) {
+  if (G.cleared) return;
+  if (G.ships.some(s => s.alive && s.team === 1)) return;
+  if (G.wave > G.healedWave) {  // a wave was just cleared: heal by difficulty
+    G.healedWave = G.wave;
+    const h = (DIFF[G.diff] || DIFF.hard).heal;
+    if (h > 0 && G.wave < MISSIONS[G.mi].waves.length) { p.hp = Math.min(p.c.hp, p.hp + p.c.hp * h); emit("waveHeal", { pct: Math.round(h * 100) }); }
+  }
+  const M = MISSIONS[G.mi];
+  if (G.wave >= M.waves.length) { G.cleared = true; emit("missionClear", { mi: G.mi }); return; }
+  if ((G.waveT -= dt) > 0) return;
+  spawnWave(G.mi, G.wave, p);
+  G.wave++; G.waveT = 3.5;  // pause before the next wave once this one is sunk
+  const W = M.waves[G.wave - 1];
+  emit("wave", { n: G.wave, total: M.waves.length, boss: !!W.boss, swarm: !!W.swarm });
+}
+
+function step(dt) {
+  G.time += dt;
+  for (const s of G.ships) if (s.alive && s.ai) aiThink(s, dt);
+  for (const s of G.ships) {
+    if (s.alive) updateShip(s, dt);
+    else { s.sink += dt; s.v = approach(s.v, 0, 20 * dt); s.x += Math.cos(s.h) * s.v * dt; s.y += Math.sin(s.h) * s.v * dt; }
+  }
+  for (const s of G.ships) if (s.alive) { updateAA(s, dt); if (s.air.length) updateAir(s, dt); }
+  for (const pl of G.planes) if (pl.alive) stepPlane(pl, dt);
+  for (const s of G.ships) if (s.alive && s.field) updateField(s, dt);
+  G.planes = G.planes.filter(pl => pl.alive);
+  for (const sh of G.shells) {
+    const k0 = sh.t / sh.T;
+    sh.t += dt;
+    if (sh.rail && railSweep(sh, k0, Math.min(1, sh.t / sh.T))) continue;
+    if (sh.t >= sh.T) { sh.done = true; if (sh.rail) { if (sh.blast) areaBlast(sh, sh.tx, sh.ty, null); else emit("splash", { x: sh.tx, y: sh.ty }); } else landShell(sh); }
+  }
+  G.shells = G.shells.filter(s => !s.done);
+  for (const pr of G.proj) stepProj(pr, dt);
+  G.proj = G.proj.filter(p => !p.done && Math.abs(p.x) < WORLD + 200 && Math.abs(p.y) < WORLD + 200);
+  G.ships = G.ships.filter(s => s.alive || s.sink < 3.2);
+
+  const p = byId(G.playerId);
+  if (p && p.alive) {
+    if (G.time - p.lastHit > 5) p.hp = Math.min(p.c.hp, p.hp + p.c.hp * 0.012 * dt);
+    if (G.mode === "mission") missionStep(p, dt);
+    else {
+      G.spawnT -= dt;
+      const enemies = G.ships.filter(s => s.alive && s.team !== p.team).length;
+      const want = Math.min(2 + Math.floor(G.score / 3), 7);
+      if (enemies < want && G.spawnT <= 0) { spawnEnemy(p.x, p.y); G.spawnT = rnd(2, 4); }
+    }
+  }
+}
+
+// mission = index into MISSIONS for mission play, or null for free play
+function resetGame(cls, load, startScore, mission, diff) {
+  G.ships = []; G.shells = []; G.proj = []; G.planes = []; G.events = []; G.score = startScore || 0; G.time = 0; G.spawnT = 1.5;
+  G.mode = mission == null ? "free" : "mission"; G.mi = mission; G.wave = 0; G.waveT = 1.5; G.cleared = false; G.healedWave = 0; G.diff = diff || "hard";
+  const p = addShip(buildShip(cls, load, 0, 0, 0, -Math.PI / 2));
+  G.playerId = p.id;
+  if (G.mode === "free") spawnEnemy(0, 0);
+}
+
+/* =========================================================
+   CLIENT — input, effects, rendering
+   ========================================================= */
+const cv = document.getElementById("cv");
+const mainCtx = cv.getContext("2d");
+let ctx = mainCtx;
+const mini = document.getElementById("mini"), mctx = mini.getContext("2d");
+let W = 0, H = 0, DPR = 1, zoom = 0.7;
+const cam = { x: 0, y: 0 };
+let state = "menu", shake = 0, deadT = 0;
+let pendingMove = null, pendingLock = 0, dragging = false;
+const fireHeld = { gun: false, msl: false, tor: false, aa: false, cc: false }, firePulse = { gun: false, msl: false, tor: false, aa: false, cc: false };
+let boostHeld = false, dodgePulse = false;
+let ctrl = -1; // -1 = steering the ship, -2 = all squadrons at once, n = squadron n
+const ctrlSquads = p => ctrl === -1 || ctrl === -2 ? p.air : p.air[ctrl] ? [p.air[ctrl]] : [];
+const isCtrl = i => ctrl === -2 || ctrl === i;
+const fx = [], floaters = [];
+
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  zoom = clamp(Math.sqrt(W * H) / 1500, 0.4, 0.85);
+  if (state === "menu") drawPreview();
+}
+addEventListener("resize", resize);
+
+const toWorld = (sx, sy) => ({ x: cam.x + (sx - W / 2) / zoom, y: cam.y + (sy - H / 2) / zoom });
+function pointerWorld(e) { const w = toWorld(e.clientX, e.clientY); return { x: clamp(w.x, -WORLD, WORLD), y: clamp(w.y, -WORLD, WORLD) }; }
+cv.addEventListener("pointerdown", e => {
+  if (state !== "play") return;
+  const w = pointerWorld(e), p = byId(G.playerId);
+  let hit = null;
+  for (const s of G.ships) if (s.alive && p && s.team !== p.team && Math.hypot(s.x - w.x, s.y - w.y) < s.c.len / 2 + 20 / zoom) hit = s;
+  if (ctrl !== -1 && p && p.air.length) {  // squadron control: tap sea = go there, tap enemy = attack that ship
+    for (const sq of ctrlSquads(p)) p.input.airOrders.push(hit ? { sq: sq.idx, type: "tgt", id: hit.id } : { sq: sq.idx, type: "wp", x: w.x, y: w.y });
+    hideHint(); return;
+  }
+  if (hit) { pendingLock = p.input.lock === hit.id ? -1 : hit.id; hideHint(); return; }
+  pendingMove = w; dragging = true;
+  cv.setPointerCapture(e.pointerId);
+  hideHint();
+});
+cv.addEventListener("pointermove", e => { if (dragging && state === "play") pendingMove = pointerWorld(e); });
+const endDrag = () => { dragging = false; };
+cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
+
+/* ---- fire buttons (built per ship) ---- */
+const fireRow = document.getElementById("fireRow");
+let groupBtns = {};
+function buildFireButtons(ship) {
+  fireRow.innerHTML = ""; groupBtns = {};
+  const order = ["aa", "tor", "msl", "cc", "gun"].filter(g => g === "aa" ? !!ship.aa : ship.groups.includes(g));
+  order.forEach((g, i) => {
+    const info = g === "cc" && ship.field ? { label: "BLAST", sub: "磁場爆発", key: "5" } : GROUP_INFO[g];
+    const mounts = ship.mounts.filter(m => m.w.group === g);
+    const n = mounts.length, seg = 100 / n;
+    const b = document.createElement("button");
+    b.className = "fbtn" + (i === order.length - 1 ? " main" : "");
+    b.setAttribute("aria-label", info.sub + "発射");
+    let arcs = "";
+    for (let k = 0; k < n; k++) arcs += `<circle cx="64" cy="64" r="58" fill="none" stroke="#5fd6c3" stroke-width="5" pathLength="100" stroke-dasharray="0 100" stroke-dashoffset="${-(k * seg + 0.8)}"/>`;
+    b.innerHTML = `<svg viewBox="0 0 128 128" aria-hidden="true"><circle cx="64" cy="64" r="58" fill="none" stroke="rgba(143,195,214,.15)" stroke-width="5"/>${arcs}</svg>${info.label}<span class="sub">${info.sub}</span><span class="key">${info.key}</span>`;
+    b.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); fireHeld[g] = true; firePulse[g] = true; b.classList.add("held"); b.setPointerCapture(e.pointerId); hideHint(); });
+    const up = () => { fireHeld[g] = false; b.classList.remove("held"); };
+    b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up);
+    b.addEventListener("contextmenu", e => e.preventDefault());
+    fireRow.appendChild(b);
+    groupBtns[g] = { el: b, arcs: [...b.querySelectorAll("circle")].slice(1), seg, mounts };
+  });
+}
+const FIRE_KEYS = { Space: "gun", Digit1: "gun", Digit2: "msl", Digit3: "tor", Digit4: "aa", Digit5: "cc", Numpad5: "cc", Numpad1: "gun", Numpad2: "msl", Numpad3: "tor", Numpad4: "aa" };
+
+/* ---- fire mode: individual / salvo ---- */
+let salvoMode = false;
+const salvoArmed = { gun: false, msl: false, tor: false }; // salvo mode: one tap arms the group; it fires when everything lines up
+const modeBtn = document.getElementById("modeBtn"), modeVal = document.getElementById("modeVal");
+const spreadBtn = document.getElementById("spreadBtn"), spreadVal = document.getElementById("spreadVal");
+const SPREAD_NAMES = { "-1": "集束", "0": "標準", "1": "散布" };
+let spreadMode = 0;
+try { spreadMode = clamp(parseInt(localStorage.getItem("salvo.spread") || "0", 10) || 0, -1, 1); } catch (e) {}
+function setSpread(v) {
+  spreadMode = v;
+  spreadBtn.dataset.v = v; spreadVal.textContent = SPREAD_NAMES[v];
+  try { localStorage.setItem("salvo.spread", String(v)); } catch (e) {}
+}
+setSpread(spreadMode);
+const cycleSpread = () => { if (salvoMode) setSpread(spreadMode >= 1 ? -1 : spreadMode + 1); };
+spreadBtn.addEventListener("pointerdown", e => e.stopPropagation());
+/* lock-on: cycle nearest → next nearest → … → back to automatic */
+const lockBtn = document.getElementById("lockBtn"), lockVal = document.getElementById("lockVal");
+function cycleLock() {
+  const p = byId(G.playerId); if (!p || !p.alive) return;
+  const list = G.ships.filter(o => o.alive && o.team !== p.team).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+  const cur = pendingLock > 0 ? pendingLock : p.input.lock;
+  const i = list.findIndex(o => o.id === cur);
+  pendingLock = i + 1 < list.length ? list[i + 1].id : -1;
+}
+lockBtn.addEventListener("pointerdown", e => e.stopPropagation());
+/* auto AA toggle, carrier controls */
+const aaBtn = document.getElementById("aaBtn"), aaVal = document.getElementById("aaVal");
+let autoAA = true;
+try { autoAA = localStorage.getItem("salvo.autoAA") !== "off"; } catch (e) {}
+function setAutoAA(v) { autoAA = v; aaBtn.setAttribute("aria-pressed", v); aaVal.textContent = v ? "ON" : "OFF"; try { localStorage.setItem("salvo.autoAA", v ? "on" : "off"); } catch (e) {} }
+setAutoAA(autoAA);
+const ctrlBtn = document.getElementById("ctrlBtn"), ctrlVal = document.getElementById("ctrlVal");
+function cycleCtrl() {  // 艦 → 全航空隊 → 第1 → 第2 … → 艦
+  const p = byId(G.playerId); if (!p || !p.air.length) return;
+  const order = [-1].concat(p.air.length > 1 ? [-2] : [], p.air.map(q => q.idx));
+  ctrl = order[(order.indexOf(ctrl) + 1) % order.length];
+}
+const ctrlName = () => ctrl === -1 ? "艦" : ctrl === -2 ? "全航空隊" : `第${ctrl + 1}航空隊`;
+function setAutoLaunch() {  // toggles the auto-launch of the selected squadrons (all of them in ship mode)
+  const p = byId(G.playerId); if (!p || !p.air.length) return;
+  const sel = ctrlSquads(p), v = !sel.every(q => q.autoLaunch);
+  for (const sq of sel) p.input.airOrders.push({ sq: sq.idx, type: "autoLaunch", v });
+}
+function onBombRun(p, sq) { return G.planes.some(q => q.owner === p.id && q.sq === sq.idx && q.state === "attack" && q.w.ptype === "bomb"); }
+function airCmd(type) {
+  const p = byId(G.playerId); if (!p || !p.alive || !p.air.length) return;
+  for (const sq of ctrlSquads(p)) p.input.airOrders.push({ sq: sq.idx, type: type === "attack" && ctrl !== -1 && onBombRun(p, sq) ? "drop" : type });
+}
+for (const [b, f] of [[aaBtn, () => setAutoAA(!autoAA)], [ctrlBtn, cycleCtrl], [document.getElementById("atkBtn"), () => airCmd("attack")], [document.getElementById("rtbBtn"), () => airCmd("recall")], [document.getElementById("launchBtn"), () => airCmd("launch")], [document.getElementById("alBtn"), setAutoLaunch]]) {
+  b.addEventListener("pointerdown", e => e.stopPropagation());
+  b.addEventListener("click", () => { f(); hideHint(); });
+}
+lockBtn.addEventListener("click", () => { cycleLock(); hideHint(); });
+spreadBtn.addEventListener("click", () => { cycleSpread(); hideHint(); });
+try { salvoMode = localStorage.getItem("salvo.mode") === "salvo"; } catch (e) {}
+function setMode(v) {
+  salvoMode = v;
+  salvoArmed.gun = salvoArmed.msl = salvoArmed.tor = false;
+  modeBtn.setAttribute("aria-pressed", v);
+  modeVal.textContent = v ? "一斉射撃" : "個別射撃";
+  spreadBtn.disabled = !v;
+  try { localStorage.setItem("salvo.mode", v ? "salvo" : "single"); } catch (e) {}
+}
+setMode(salvoMode);
+modeBtn.addEventListener("pointerdown", e => e.stopPropagation());
+modeBtn.addEventListener("click", () => { setMode(!salvoMode); hideHint(); });
+addEventListener("keydown", e => {
+  if (state !== "play") return;
+  if (e.code === "KeyQ" && !e.repeat) setMode(!salvoMode);
+  if (e.code === "KeyE" && !e.repeat) cycleSpread();
+  if (e.code === "KeyF" && !e.repeat) cycleLock();
+  if (e.code === "KeyV" && !e.repeat) setAutoAA(!autoAA);
+  if (e.code === "KeyC" && !e.repeat) cycleCtrl();
+  if (e.code === "KeyX" && !e.repeat) airCmd("attack");
+  // while flying a squadron, SPACE is the squadron's attack / bomb-release key instead of the ship's guns
+  if (e.code === "KeyR" && !e.repeat) airCmd("launch");
+  if (e.code === "KeyT" && !e.repeat) setAutoLaunch();
+  // debug: adjust the kill count (drives enemy strength) during play
+  if (dbgOn && G.mode === "free" && (e.code === "Equal" || e.code === "NumpadAdd" || e.code === "Semicolon")) G.score = Math.min(99, G.score + 1);
+  if (dbgOn && G.mode === "free" && (e.code === "Minus" || e.code === "NumpadSubtract")) G.score = Math.max(0, G.score - 1);
+  if (e.code === "ShiftLeft" || e.code === "ShiftRight") boostHeld = true;
+
+  if (e.code === "Space" && ctrl !== -1) { e.preventDefault(); if (!e.repeat) airCmd("attack"); return; }
+  if (e.code === "KeyB" && !e.repeat) airCmd("recall");
+  if (e.code === "Escape") homePress();
+  const g = FIRE_KEYS[e.code];
+  if (g) { e.preventDefault(); if (!e.repeat) firePulse[g] = true; fireHeld[g] = true; }
+});
+addEventListener("keyup", e => { const g = FIRE_KEYS[e.code]; if (g) fireHeld[g] = false; if (e.code === "ShiftLeft" || e.code === "ShiftRight") boostHeld = false; });
+const boostBtn = document.getElementById("boostBtn");
+boostBtn.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); boostHeld = true; boostBtn.setPointerCapture(e.pointerId); });
+for (const ev of ["pointerup", "pointercancel"]) boostBtn.addEventListener(ev, () => { boostHeld = false; });
+
+addEventListener("blur", () => { fireHeld.gun = fireHeld.msl = fireHeld.tor = fireHeld.aa = false; });
+
+let hintHidden = false;
+function hideHint() { if (hintHidden) return; hintHidden = true; setTimeout(() => document.getElementById("hint").style.opacity = 0, 2500); }
+
+/* ---- hangar ---- */
+/* ---- mission progress & unlocks (saved in this browser) ---- */
+const PROG = { cleared: 0, all: false };
+try { const v = JSON.parse(localStorage.getItem("salvo.progress") || "null"); if (v) { PROG.cleared = clamp(v.cleared | 0, 0, MISSIONS.length); PROG.all = !!v.all; } } catch (e) {}
+function saveProg() { try { localStorage.setItem("salvo.progress", JSON.stringify(PROG)); } catch (e) {} }
+const shipUnlocked = k => PROG.all || BASE_SHIPS.includes(k) || (unlockMission.ship[k] || 99) <= PROG.cleared;
+const weaponUnlocked = k => PROG.all || BASE_WEAPONS.includes(k) || (unlockMission.weapon[k] || 99) <= PROG.cleared;
+function sanitizeLoad(cls, load) {  // replace anything still locked with something allowed
+  const d = defaultLoadout(cls);
+  return SHIPS[cls].slots.map((sl, i) => {
+    const all = slotOptions(sl), o = all.filter(weaponUnlocked);
+    return o.includes(load[i]) ? load[i] : o.includes(d[i]) ? d[i] : o[o.length - 1] || all[0];
+  });
+}
+let playMode = "mission", selMission = Math.min(PROG.cleared, MISSIONS.length - 1);
+try { if (localStorage.getItem("salvo.mode2") === "free") playMode = "free"; } catch (e) {}
+let selCls = "boatA", selLoad = defaultLoadout("boatA");
+try { const sv = JSON.parse(localStorage.getItem("salvo.loadout") || "null"); if (sv && SHIPS[sv.cls] && sv.load && sv.load.length === SHIPS[sv.cls].slots.length && sv.load.every((w, i) => slotOptions(SHIPS[sv.cls].slots[i]).includes(w))) { selCls = sv.cls; selLoad = sv.load; } } catch (e) {}
+try { const v = localStorage.getItem("salvo.dbgScore"); if (v) document.getElementById("dbgScore").value = v; } catch (e) {}
+let slotsOpen = null;  // remembers whether the per-slot list is expanded (null = auto by slot count)
+if (!shipUnlocked(selCls)) { selCls = "boatA"; selLoad = defaultLoadout("boatA"); }
+selLoad = sanitizeLoad(selCls, selLoad);
+function saveSel() { try { localStorage.setItem("salvo.loadout", JSON.stringify({ cls: selCls, load: selLoad })); } catch (e) {} }
+
+const shipList = document.getElementById("shipList");
+function renderShipList() {
+  shipList.innerHTML = "";
+  for (const t of TIERS) {
+    const sec = document.createElement("div");
+    sec.innerHTML = `<div class="tierName">${t.name}</div>`;
+    const grid = document.createElement("div"); grid.className = "tierShips";
+    for (const k of t.ships) {
+      const c = SHIPS[k];
+      const b = document.createElement("button");
+      b.className = "shipBtn"; b.setAttribute("aria-pressed", k === selCls);
+      const open = shipUnlocked(k);
+      b.disabled = !open;
+      b.innerHTML = `<b>${c.name}</b>` + (open ? `<span>耐久 ${c.hp} ・ ${(c.spd * 0.42).toFixed(0)}kn</span>` : `<em>ミッション${unlockMission.ship[k]}クリアで解放</em>`);
+      b.onclick = () => { if (selCls !== k) { selCls = k; selLoad = sanitizeLoad(k, defaultLoadout(k)); slotsOpen = null; saveSel(); renderShipList(); renderConfig(); } };
+      grid.appendChild(b);
+    }
+    sec.appendChild(grid); shipList.appendChild(sec);
+  }
+}
+function meter(v, max) { return `<div class="meter"><i style="width:${clamp(v / max, 0.05, 1) * 100}%"></i></div>`; }
+function renderConfig() {
+  const c = SHIPS[selCls];
+  document.getElementById("cfgName").textContent = c.name;
+  document.getElementById("cfgRole").textContent = c.role;
+  const tmp = buildShip(selCls, selLoad, 0, 0, 0, 0);
+  const maxR = Math.max(0, ...tmp.mounts.map(m => m.w.range)) || (tmp.air.length ? AIR_RANGE : 0);
+  const aaTxt = tmp.aa ? [tmp.aa.mg && `機銃${tmp.aa.mg}`, tmp.aa.gun && `砲${tmp.aa.gun}`, tmp.aa.msl && `ミサイル${tmp.aa.msl}`].filter(Boolean).join(" ・ ") : "なし";
+  document.getElementById("stats").innerHTML =
+    `<div class="stat"><span class="lbl">耐久</span><span class="v">${c.hp}</span>${meter(c.hp, 320)}</div>` +
+    `<div class="stat"><span class="lbl">速力</span><span class="v">${(c.spd * 0.42).toFixed(0)} kn</span>${meter(c.spd, 118)}</div>` +
+    `<div class="stat"><span class="lbl">旋回</span><span class="v">${(c.turn * 100).toFixed(0)}</span>${meter(c.turn, 1.8)}</div>` +
+    `<div class="stat"><span class="lbl">${tmp.air.length && !tmp.mounts.length ? "航空隊の行動半径" : "最大射程"}</span><span class="v">${maxR} m</span>${meter(maxR, 1200)}</div>` +
+    `<div class="stat"><span class="lbl">対空</span><span class="v sm">${aaTxt}</span></div>` +
+    (tmp.air.length ? `<div class="stat"><span class="lbl">艦載機</span><span class="v sm">${tmp.air.length}個航空隊 ・ ${tmp.air.length * SQUAD_SIZE}機</span></div>` : "");
+  const slots = document.getElementById("slots");
+  slots.innerHTML = "";
+  const lockTag = k => weaponUnlocked(k) ? "" : `  🔒ミッション${unlockMission.weapon[k]}`;
+  const optText = k => `${WEAPONS[k].name}  ${WEAPONS[k].kind === "plane" ? `行動半径${WEAPONS[k].range} ・ 再出撃${WEAPONS[k].reload}s` : `射程${WEAPONS[k].range} ・ 装填${WEAPONS[k].reload}s`}`;
+  // bulk pickers: one select per kind of slot that appears more than once (e.g. all 6 air wings at once)
+  const groups = new Map();
+  c.slots.forEach((sl, i) => { if (sl.k === "fixed") return; const key = [sl.k, sl.max || "", sl.min || ""].join("|"); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(i); });
+  const bulk = [...groups.values()].filter(ix => ix.length > 1);
+  if (bulk.length) {
+    const head = document.createElement("div"); head.className = "slotHead"; head.textContent = "まとめて選ぶ";
+    slots.appendChild(head);
+    bulk.forEach((ix, gi) => {
+      const sl = c.slots[ix[0]], cur = selLoad[ix[0]], same = ix.every(i => selLoad[i] === cur);
+      const id = `bulk-${selCls}-${gi}`;
+      const row = document.createElement("div"); row.className = "slot bulk";
+      row.innerHTML = `<label for="${id}">${slotLabel(sl)} ×${ix.length}</label><select id="${id}">${same ? "" : `<option value="" selected>（ばらばら）</option>`}${slotOptions(sl).map(k => `<option value="${k}"${same && k === cur ? " selected" : ""}${weaponUnlocked(k) ? "" : " disabled"}>${optText(k)}${lockTag(k)}</option>`).join("")}</select>`;
+      row.querySelector("select").onchange = e => { if (!e.target.value) return; for (const i of ix) selLoad[i] = e.target.value; saveSel(); renderConfig(); };
+      slots.appendChild(row);
+    });
+  }
+  const box = document.createElement("details"); box.className = "slotEach";
+  box.open = slotsOpen ?? c.slots.length <= 6;
+  box.ontoggle = () => { slotsOpen = box.open; };
+  box.innerHTML = `<summary>${bulk.length ? "1つずつ選ぶ" : "武装"}（${c.slots.length}枠）</summary>`;
+  c.slots.forEach((sl, i) => {
+    const row = document.createElement("div"); row.className = "slot";
+    const id = `slot-${selCls}-${i}`;
+    const opts = slotOptions(sl).map(k => `<option value="${k}"${k === selLoad[i] ? " selected" : ""}${weaponUnlocked(k) ? "" : " disabled"}>${optText(k)}${lockTag(k)}</option>`).join("");
+    row.innerHTML = `<label for="${id}">${i + 1}. ${slotLabel(sl)}</label><select id="${id}"${sl.k === "fixed" ? " disabled" : ""}>${opts}</select><div class="desc">${WEAPONS[selLoad[i]].desc}</div>`;
+    row.querySelector("select").onchange = e => { selLoad[i] = e.target.value; saveSel(); renderConfig(); };
+    box.appendChild(row);
+  });
+  slots.appendChild(box);
+  drawPreview();
+  renderWeaponTable();
+}
+/* weapon comparison chart: one row per weapon, bars share a scale per column */
+function weaponStats(w) {
+  const n = w.kind === "shell" ? (w.shots || w.barrels) : (w.count || 1);
+  return {
+    dmg: Math.round(w.dmg * n),
+    range: w.range,
+    speed: w.kind === "shell" ? w.speed : w.kind === "field" ? null : (w.vmax || w.v),
+    ...(w.kind === "plane" ? { dmg: Math.round(w.dmg * (w.bombs || 1)) } : {}),
+    turn: w.turn ? Math.round(w.turn * 180 / Math.PI) : null,
+    reload: w.reload,
+  };
+}
+function renderWeaponTable() {
+  const keys = GUN_ORDER.concat(MSL_ORDER, TOR_ORDER, AIR_ORDER, ["CC", "EF"]);
+  const st = Object.fromEntries(keys.map(k => [k, weaponStats(WEAPONS[k])]));
+  const max = { dmg: 0, range: 0, speed: 0, turn: 0, reload: 0 };
+  for (const k of keys) for (const f in max) if (st[k][f] != null) max[f] = Math.max(max[f], st[k][f]);
+  const on = new Set(selLoad);
+  const bar = (v, mx, cls, txt) => v == null
+    ? `<div class="wbar ${cls}"><span class="na">${txt}</span><div class="tr"></div></div>`
+    : `<div class="wbar ${cls}"><span>${txt}</span><div class="tr"><i style="width:${Math.max(3, v / mx * 100)}%"></i></div></div>`;
+  let h = `<div></div><div class="wth">一斉射ダメージ</div><div class="wth">射程 m</div><div class="wth">弾速</div><div class="wth">旋回速度 °/秒</div><div class="wth">装填 秒(短いほど速い)</div>`;
+  const groups = [["砲", GUN_ORDER], ["ミサイル", MSL_ORDER], ["魚雷", TOR_ORDER], [`艦載機(1機あたり ・ 装填=再出撃準備、撃墜時の再建は${REBUILD_T}秒)`, AIR_ORDER], ["超ド級の固定武装", ["CC", "EF"]]];
+  for (const [gname, list] of groups) {
+    h += `<div class="wgrp">${gname}</div>`;
+    for (const k of list) {
+      const s = st[k], w = WEAPONS[k];
+      const n = w.kind === "shell" ? (w.shots || w.barrels) : (w.count || 1);
+      h += `<div class="wname${on.has(k) ? " on" : ""}${weaponUnlocked(k) ? "" : " lock"}">${w.name}${weaponUnlocked(k) ? "" : " 🔒"}</div>` +
+        bar(s.dmg, max.dmg, "c0", w.kind === "plane" ? (w.bombs ? `${s.dmg} <small>(${w.bombs}発)</small>` : w.ptype === "straf" ? `${w.dmg} <small>×連射</small>` : s.dmg) : w.kind === "me" ? `${s.dmg} <small>範囲</small>` : w.kind === "field" ? `${s.dmg} <small>範囲${FIELD.blastR}m</small>` : w.blast2 ? `${s.dmg} <small>+範囲${w.blast}/${w.blast2}</small>` : w.blast ? `${s.dmg} <small>+爆風${w.blast}</small>` : n > 1 ? `${s.dmg} <small>(${n}発)</small>` : s.dmg) +
+        bar(s.range, max.range, "c1", s.range) +
+        bar(s.speed, max.speed, "c4", s.speed == null ? "—" : s.speed + (w.kind === "ma" ? "<small>加速</small>" : w.kind === "mb" ? "<small>待機後</small>" : w.kind === "md" ? "<small>垂直→加速</small>" : w.kind === "me" ? "<small>加速</small>" : w.charge ? `<small>溜め${w.charge}s</small>` : w.arc ? "<small>曲射</small>" : "")) +
+        bar(s.turn, max.turn, "c2", s.turn == null ? (w.kind === "field" ? "全方位" : "垂直発射") : s.turn) +
+        bar(s.reload, max.reload, "c3", s.reload.toFixed(s.reload < 1 ? 2 : 1));
+    }
+  }
+  h += `<div class="wgrp">対空(艦ごとの固定装備 ・ 艦載機にだけ当たる)</div>`;
+  for (const k of ["mg", "gun", "msl"]) {
+    const A = AA[k];
+    h += `<div class="wname">${A.name}</div>` +
+      bar(A.dmg, max.dmg, "c0", A.dmg + (k === "gun" ? " <small>範囲</small>" : "")) +
+      bar(A.range, Math.max(max.range, A.range), "c1", A.range) +
+      bar(A.speed || null, max.speed, "c4", A.speed ? A.speed + "<small>誘導</small>" : "—") +
+      bar(null, 1, "c2", "自動旋回") +
+      bar(A.interval, max.reload, "c3", A.interval.toFixed(1));
+  }
+  document.getElementById("wtable").innerHTML = h;
+}
+
+const prevCv = document.getElementById("preview");
+function drawPreview() {
+  const r = prevCv.getBoundingClientRect();
+  if (!r.width) return;
+  const d = Math.min(2, window.devicePixelRatio || 1);
+  prevCv.width = r.width * d; prevCv.height = r.height * d;
+  const g = prevCv.getContext("2d");
+  const s = buildShip(selCls, selLoad, 0, 0, 0, 0);
+  const z = Math.min((r.width * 0.62) / s.c.len, (r.height * 0.5) / s.c.wid, 3.2);
+  g.setTransform(d * z, 0, 0, d * z, d * r.width / 2, d * r.height / 2);
+  ctx = g; drawShip(s, true, z); ctx = mainCtx;
+  g.setTransform(d, 0, 0, d, 0, 0);
+  g.fillStyle = "rgba(143,195,214,0.55)"; g.font = `11px "Chakra Petch", monospace`;
+  g.fillText(`全長 ${Math.round(s.c.len * 1.8)}m`, 10, r.height - 10);
+}
+
+document.getElementById("startBtn").onclick = () => startGame();
+document.getElementById("resetLoad").onclick = () => { selLoad = defaultLoadout(selCls); saveSel(); renderConfig(); };
+// in-game: back to ship select. Two presses (within 2.5s) so a stray tap doesn't end the run.
+const homeBtn = document.getElementById("homeBtn");
+let homeArmT = 0;
+function homePress() {
+  if (state !== "play") return;
+  if (homeBtn.classList.contains("armed")) { clearTimeout(homeArmT); homeBtn.classList.remove("armed"); homeBtn.textContent = "選択画面へ"; openHangar(); return; }
+  homeBtn.classList.add("armed"); homeBtn.textContent = "もう一度押すと戻る";
+  homeArmT = setTimeout(() => { homeBtn.classList.remove("armed"); homeBtn.textContent = "選択画面へ"; }, 2500);
+}
+homeBtn.addEventListener("pointerdown", e => e.stopPropagation());
+homeBtn.addEventListener("click", homePress);
+document.getElementById("retryBtn").onclick = () => startGame();
+document.getElementById("hangarBtn").onclick = () => { document.getElementById("over").hidden = true; openHangar(); };
+function openHangar() {
+  state = "menu";
+  G.ships = []; G.shells = []; G.proj = []; G.planes = []; G.events = []; fx.length = 0; floaters.length = 0;
+  fireHeld.gun = fireHeld.msl = fireHeld.tor = fireHeld.aa = false;
+  document.getElementById("airPanel").hidden = true;
+  document.getElementById("homeBtn").hidden = true;
+  document.getElementById("menu").hidden = false;
+  document.getElementById("fireWrap").hidden = true;
+  document.getElementById("hint").hidden = true;
+  refreshHangar();
+}
+/* ---- mission picker ---- */
+const TIER_NAMES = ["小型艇", "護衛・駆逐", "巡洋級", "戦艦級", "超ド級"];
+function waveText(M, W) {  // e.g. "空母A + 護衛・駆逐×2"
+  const counts = new Map();
+  for (const x of W.u) { const k = typeof x === "string" ? SHIPS[x].name : TIER_NAMES[x]; counts.set(k, (counts.get(k) || 0) + 1); }
+  const t = [...counts].map(([k, n]) => n > 1 ? `${k}×${n}` : k).join(" + ");
+  const esc = W.boss ? bossEscort(M, MISSIONS.indexOf(M)) : null;
+  return { t: (W.swarm ? "雑魚 " : "") + t + (esc ? ` + 雑魚${TIER_NAMES[esc.tier]}×${esc.n}` : ""), boss: !!W.boss };
+}
+function renderMissions() {
+  const list = document.getElementById("mList"), info = document.getElementById("mInfo");
+  document.getElementById("progTxt").textContent = `クリア ${PROG.cleared} / ${MISSIONS.length}`;
+  list.innerHTML = "";
+  MISSIONS.forEach((M, i) => {
+    const b = document.createElement("button");
+    b.className = "mBtn" + (i < PROG.cleared ? " done" : "");
+    b.disabled = !PROG.all && i > PROG.cleared;
+    b.setAttribute("aria-pressed", i === selMission);
+    b.innerHTML = `<b>M${i + 1}</b><span>${M.name}</span>`;
+    b.onclick = () => { selMission = i; renderMissions(); updateStartLabel(); };
+    list.appendChild(b);
+  });
+  const M = MISSIONS[selMission], u = UNLOCKS[selMission];
+  const rewards = u.ships.map(k => SHIPS[k].name).concat(u.weapons.map(k => WEAPONS[k].name));
+  info.innerHTML = `<div class="lbl2">ミッション ${selMission + 1}${selMission < PROG.cleared ? " ・ クリア済み" : ""}</div><h3>${M.name}</h3>
+    <div class="lbl2">ウェーブ(全${M.waves.length})</div>
+    <div class="wv">${M.waves.map((e, i) => { const w = waveText(M, e); return `<span class="${w.boss ? "boss" : ""}">${i + 1}. ${w.t}</span>`; }).join("")}</div>
+    <div class="lbl2">クリア報酬</div><div class="rw">${rewards.length ? rewards.join(" ・ ") : selMission === MISSIONS.length - 1 ? "全ミッション制覇" : "なし"}</div>`;
+}
+function updateStartLabel() {
+  document.getElementById("startBtn").textContent = playMode === "mission" ? `ミッション${selMission + 1} 出撃` : "フリープレイ出撃";
+}
+let difficulty = "hard";
+try { const d = localStorage.getItem("salvo.diff"); if (DIFF[d]) difficulty = d; } catch (e) {}
+function setDiff(d) {
+  difficulty = d;
+  try { localStorage.setItem("salvo.diff", d); } catch (e) {}
+  document.querySelectorAll(".dBtn").forEach(b => { b.setAttribute("aria-checked", b.dataset.d === d); b.title = { easy: "敵の回避が鈍い ・ ウェーブクリアで耐久50%回復", normal: "ウェーブクリアで耐久30%回復", hard: "回復なし" }[b.dataset.d]; });
+}
+document.querySelectorAll(".dBtn").forEach(b => b.onclick = () => setDiff(b.dataset.d));
+setDiff(difficulty);
+function setPlayMode(m) {
+  playMode = m;
+  try { localStorage.setItem("salvo.mode2", m); } catch (e) {}
+  document.getElementById("tabMission").setAttribute("aria-selected", m === "mission");
+  document.getElementById("tabFree").setAttribute("aria-selected", m === "free");
+  document.getElementById("missionPanel").hidden = m !== "mission";
+  updateStartLabel();
+}
+document.getElementById("tabMission").onclick = () => setPlayMode("mission");
+document.getElementById("tabFree").onclick = () => setPlayMode("free");
+document.getElementById("dbgAll").onchange = e => { PROG.all = dbgOn && e.target.checked; saveProg(); refreshHangar(); };
+/* debug tools sit behind a password (a light lock: the page is client-side, so it is not real security) */
+let dbgOn = false;
+try { dbgOn = localStorage.getItem("salvo.dbg") === "1"; } catch (e) {}
+function applyDbg() {
+  document.getElementById("dbgLock").hidden = dbgOn;
+  document.getElementById("dbgBody").hidden = !dbgOn;
+  if (!dbgOn && PROG.all) { PROG.all = false; saveProg(); }
+  try { localStorage.setItem("salvo.dbg", dbgOn ? "1" : "0"); } catch (e) {}
+}
+function tryDbg() {
+  const inp = document.getElementById("dbgPass");
+  if (inp.value === "114514") { dbgOn = true; inp.value = ""; document.getElementById("dbgMsg").textContent = ""; applyDbg(); refreshHangar(); }
+  else document.getElementById("dbgMsg").textContent = "パスワードが違います";
+}
+document.getElementById("dbgGo").onclick = tryDbg;
+document.getElementById("dbgPass").addEventListener("keydown", e => { if (e.key === "Enter") tryDbg(); });
+document.getElementById("dbgOff").onclick = () => { dbgOn = false; applyDbg(); refreshHangar(); };
+applyDbg();
+function refreshHangar() {
+  if (!shipUnlocked(selCls)) selCls = "boatA";
+  selLoad = sanitizeLoad(selCls, selLoad);
+  document.getElementById("dbgAll").checked = PROG.all;
+  renderMissions(); renderShipList(); renderConfig(); setPlayMode(playMode);
+}
+
+const bannerEl = document.getElementById("banner");
+function showBanner(main, sub, good) {
+  bannerEl.innerHTML = main + (sub ? `<small${good ? ' style="color:var(--accent)"' : ""}>${sub}</small>` : "");
+  bannerEl.hidden = false; bannerEl.classList.remove("show"); void bannerEl.offsetWidth; bannerEl.classList.add("show");
+}
+function showClear(mi, first) {
+  if (state !== "play") return;
+  state = "won";
+  const M = MISSIONS[mi], u = UNLOCKS[mi], last = mi === MISSIONS.length - 1;
+  document.getElementById("clearSub").textContent = `ミッション${mi + 1} 完了 ・ ${DIFF[difficulty].name}`;
+  document.getElementById("clearName").textContent = M.name;
+  const items = first ? u.ships.map(k => SHIPS[k].name).concat(u.weapons.map(k => WEAPONS[k].name)) : [];
+  document.getElementById("clearMsg").textContent = last ? "全ミッション制覇!" : items.length ? "解放されたもの" : first ? "" : "クリア済みのミッション";
+  document.getElementById("clearUnl").innerHTML = items.map(t => `<span>${t}</span>`).join("");
+  document.getElementById("nextBtn").textContent = last ? "選択画面へ" : "次のミッションの準備へ";
+  document.getElementById("clearOv").hidden = false;
+  for (const id of ["fireWrap", "homeBtn", "airPanel"]) document.getElementById(id).hidden = true;
+}
+document.getElementById("nextBtn").onclick = () => {
+  document.getElementById("clearOv").hidden = true;
+  if (G.mi < MISSIONS.length - 1) selMission = G.mi + 1;
+  playMode = "mission"; openHangar();
+};
+document.getElementById("againBtn").onclick = () => { document.getElementById("clearOv").hidden = true; startGame(); };
+function startGame() {
+  document.getElementById("menu").hidden = true;
+  document.getElementById("over").hidden = true;
+  const dbgIn = document.getElementById("dbgScore");
+  const startScore = dbgOn ? clamp(parseInt(dbgIn.value, 10) || 0, 0, 99) : 0;
+  dbgIn.value = startScore;
+  try { localStorage.setItem("salvo.dbgScore", String(startScore)); } catch (e) {}
+  selLoad = sanitizeLoad(selCls, selLoad);
+  resetGame(selCls, selLoad.slice(), playMode === "free" ? startScore : 0, playMode === "mission" ? selMission : null, difficulty);
+  document.getElementById("waveRow").hidden = G.mode !== "mission";
+  document.getElementById("clearOv").hidden = true;
+  fx.length = 0; floaters.length = 0; state = "play"; deadT = 0; salvoArmed.gun = salvoArmed.msl = salvoArmed.tor = false;
+  const p = byId(G.playerId); cam.x = p.x; cam.y = p.y;
+  buildFireButtons(p);
+  document.getElementById("shipName").textContent = p.c.name;
+  document.getElementById("fireWrap").hidden = false;
+  document.getElementById("homeBtn").hidden = false;
+  ctrl = -1;
+  document.getElementById("airRow").hidden = !p.air.length;
+  document.getElementById("airPanel").hidden = !p.air.length;
+  aaBtn.hidden = !p.aa;
+  document.getElementById("boostRow").hidden = !p.c.boost;
+  document.getElementById("fuelRow").hidden = !p.c.boost;
+  document.getElementById("fieldRow").hidden = !p.field;
+  const hint = document.getElementById("hint"); hint.hidden = false; hint.style.opacity = 1; hintHidden = false;
+}
+
+/* ---- effects from sim events ---- */
+function addFx(o) { fx.push(Object.assign({ life: 0 }, o)); }
+function handleEvents() {
+  const p = byId(G.playerId);
+  for (const ev of G.events) {
+    if (ev.type === "muzzle") {
+      addFx({ k: "flash", x: ev.x, y: ev.y, a: ev.a, r: ev.size * 1.6, max: 0.16 });
+      for (let i = 0; i < (ev.size > 5 ? 4 : 1); i++) addFx({ k: "smoke", x: ev.x, y: ev.y, vx: Math.cos(ev.a) * rnd(10, 35) + rnd(-8, 8), vy: Math.sin(ev.a) * rnd(10, 35) + rnd(-8, 8), r: ev.size * rnd(0.6, 1.1), max: rnd(0.8, 1.4) });
+    } else if (ev.type === "launch") {
+      for (let i = 0; i < 5; i++) addFx({ k: "smoke", x: ev.x, y: ev.y, vx: rnd(-20, 20), vy: rnd(-20, 20), r: rnd(4, 7), max: rnd(0.8, 1.5) });
+    } else if (ev.type === "torlaunch") {
+      addFx({ k: "ring", x: ev.x, y: ev.y, r: 4, max: 0.7 });
+    } else if (ev.type === "splash") {
+      addFx({ k: "ring", x: ev.x, y: ev.y, r: ev.small ? 2 : 6, max: ev.small ? 0.5 : 1.1, sz: ev.small ? 8 : 26 });
+      if (!ev.small) {
+        for (let i = 0; i < 7; i++) { const a = Math.random() * TAU, sp = rnd(15, 45); addFx({ k: "drop", x: ev.x, y: ev.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: rnd(1.5, 3), max: rnd(0.5, 0.9) }); }
+        addFx({ k: "column", x: ev.x, y: ev.y, r: 9, max: 0.7 });
+      }
+    } else if (ev.type === "blast") {
+      addFx({ k: "boom", x: ev.x, y: ev.y, r: ev.r * 0.7, max: 0.45 });
+    } else if (ev.type === "hit") {
+      addFx({ k: "boom", x: ev.x, y: ev.y, r: ev.big ? 26 : 12, max: ev.big ? 0.7 : 0.4 });
+      for (let i = 0; i < (ev.big ? 8 : 3); i++) addFx({ k: "smoke", x: ev.x, y: ev.y, vx: rnd(-15, 15), vy: rnd(-15, 15), r: rnd(5, 9), max: rnd(1, 2), dark: true });
+      if (p && ev.id === p.id) shake = Math.min(14, shake + (ev.big ? 10 : 5));
+    } else if (ev.type === "torhit") {
+      addFx({ k: "column", x: ev.x, y: ev.y, r: 22, max: 1.0 });
+      addFx({ k: "ring", x: ev.x, y: ev.y, r: 10, max: 1.4, sz: 50 });
+    } else if (ev.type === "wave") {
+      showBanner(`WAVE ${ev.n} / ${ev.total}`, ev.boss ? "格上の敵が接近" : ev.swarm ? "敵の大群が四方から接近" : "");
+    } else if (ev.type === "waveHeal") {
+      showBanner("WAVE CLEAR", `耐久 +${ev.pct}% 回復`, true);
+    } else if (ev.type === "missionClear") {
+      const first = ev.mi + 1 > PROG.cleared;
+      if (first) { PROG.cleared = ev.mi + 1; saveProg(); }
+      showBanner("MISSION CLEAR", "");
+      setTimeout(() => showClear(ev.mi, first), 1800);
+    } else if (ev.type === "bigblast") {
+      addFx({ k: "boom", x: ev.x, y: ev.y, r: ev.r * 0.9, max: 0.8 });
+      addFx({ k: "ring", x: ev.x, y: ev.y, r: ev.r * 0.3, max: 1.2, sz: ev.r * 0.9 });
+      for (let i = 0; i < 10; i++) addFx({ k: "smoke", x: ev.x + rnd(-ev.r / 2, ev.r / 2), y: ev.y + rnd(-ev.r / 2, ev.r / 2), vx: rnd(-10, 10), vy: rnd(-10, 10), r: rnd(10, 18), max: rnd(1.5, 2.5), dark: true });
+      if (p && Math.hypot(p.x - ev.x, p.y - ev.y) < 600) shake = Math.min(18, shake + 8);
+    } else if (ev.type === "shieldHit") {
+      addFx({ k: "spark", x: ev.x, y: ev.y, r: 10, max: 0.35 });
+    } else if (ev.type === "shieldBreak") {
+      addFx({ k: "ring", x: ev.x, y: ev.y, r: ev.r * 0.8, max: 1.0, sz: ev.r * 0.6 });
+      if (p && Math.hypot(p.x - ev.x, p.y - ev.y) < 700) shake = Math.min(14, shake + 6);
+    } else if (ev.type === "dodge") {
+      for (let i = 0; i < 6; i++) addFx({ k: "wake", x: ev.x + rnd(-20, 20), y: ev.y + rnd(-20, 20), r: 6, grow: 20, max: 1.2 });
+    } else if (ev.type === "tracer") {
+      addFx({ k: "tracer", x: ev.x1, y: ev.y1, x2: ev.x2, y2: ev.y2, max: 0.1 });
+    } else if (ev.type === "flak") {
+      addFx({ k: "flak", x: ev.x, y: ev.y, r: 9, max: 0.9 });
+    } else if (ev.type === "planeDown") {
+      addFx({ k: "boom", x: ev.x, y: ev.y, r: 14, max: 0.5 });
+      for (let i = 0; i < 4; i++) addFx({ k: "smoke", x: ev.x, y: ev.y, vx: rnd(-20, 20), vy: rnd(-20, 20), r: rnd(3, 6), max: rnd(1, 1.8), dark: true });
+      addFx({ k: "ring", x: ev.x + rnd(-20, 20), y: ev.y + rnd(-20, 20), r: 3, max: 0.9, sz: 14, delay: 0.6 });
+    } else if (ev.type === "sunk") {
+      for (let i = 0; i < 4; i++) addFx({ k: "boom", x: ev.x + rnd(-ev.len / 3, ev.len / 3), y: ev.y + rnd(-8, 8), r: rnd(18, 30), max: rnd(0.5, 0.9), delay: i * 0.12 });
+      for (let i = 0; i < 12; i++) addFx({ k: "smoke", x: ev.x + rnd(-ev.len / 2, ev.len / 2), y: ev.y, vx: rnd(-12, 12), vy: rnd(-12, 12), r: rnd(8, 16), max: rnd(2, 3.5), dark: true });
+      if (p && ev.id !== p.id) floaters.push({ x: ev.x, y: ev.y, text: ev.name + " 撃沈", life: 0 });
+      if (p && ev.id === p.id) shake = 18;
+    }
+  }
+  G.events.length = 0;
+}
+
+/* ---- main loop with fixed sim step ---- */
+const DT = 1 / 60;
+let acc = 0, last = performance.now(), wakeT = 0, trailT = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (state === "play" || state === "dying") {
+    acc += dt;
+    while (acc >= DT) {
+      const p = byId(G.playerId);
+      if (p && p.alive) {
+        if (pendingMove) { p.input.moveTo = pendingMove; pendingMove = null; }
+        if (pendingLock) { p.input.lock = pendingLock > 0 ? pendingLock : 0; pendingLock = 0; }
+        p.input.autoAA = autoAA;
+        p.input.manual = ctrl === -1 ? [] : ctrlSquads(p).map(q => q.idx);
+        p.input.boost = boostHeld;
+        if (dodgePulse) { p.input.dodge = true; dodgePulse = false; }
+        const vw = W / zoom / 2 - 10, vh = H / zoom / 2 - 10;
+        p.input.view = { x0: cam.x - vw, x1: cam.x + vw, y0: cam.y - vh, y1: cam.y + vh };
+        for (const g of ["gun", "msl", "tor", "aa", "cc"]) {
+          if (salvoMode && firePulse[g] && g !== "aa") salvoArmed[g] = true;
+          p.input.fire[g] = fireHeld[g] || firePulse[g] || (salvoMode && salvoArmed[g]);
+          firePulse[g] = false;
+        }
+        p.input.salvo = salvoMode;
+        p.input.spread = spreadMode;
+      }
+      step(DT); acc -= DT;
+      if (p) for (const g in salvoArmed) if (salvoArmed[g] && p.lastFire[g] === G.time) salvoArmed[g] = false;
+    }
+    handleEvents();
+    const p = byId(G.playerId);
+    if ((!p || !p.alive) && state === "play") { state = "dying"; deadT = 0; }
+    if (state === "dying") {
+      deadT += dt;
+      if (deadT > 2) {
+        state = "dead";
+        const ms = G.mode === "mission";
+        document.getElementById("finalScore").textContent = ms ? `WAVE ${G.wave} / ${MISSIONS[G.mi].waves.length}` : G.score;
+        document.getElementById("overShip").textContent = ms ? `ミッション${G.mi + 1}「${MISSIONS[G.mi].name}」失敗 ・ ${SHIPS[selCls].name} は撃沈されました` : SHIPS[selCls].name + " は撃沈されました";
+        document.querySelector("#over .card p:nth-of-type(2)").textContent = ms ? "到達ウェーブ" : "撃沈数";
+        document.getElementById("over").hidden = false;
+        document.getElementById("homeBtn").hidden = true;
+        document.getElementById("airPanel").hidden = true;
+        document.getElementById("fireWrap").hidden = true;
+      }
+    }
+  }
+  if (state !== "menu") {
+    wakeT += dt; trailT += dt;
+    if (wakeT > 0.07) {
+      wakeT = 0;
+      for (const s of G.ships) if (s.alive && s.v > 6) {
+        const k = s.v / s.c.spd;
+        addFx({ k: "wake", x: s.x - Math.cos(s.h) * s.c.len * 0.48, y: s.y - Math.sin(s.h) * s.c.len * 0.48, r: s.c.wid * 0.35, grow: s.c.wid * 0.9 * k, max: 2.6 * k + 0.4 });
+        addFx({ k: "wake", x: s.x + Math.cos(s.h) * s.c.len * 0.42, y: s.y + Math.sin(s.h) * s.c.len * 0.42, r: s.c.wid * 0.25, grow: s.c.wid * 1.1 * k, max: 1.2 * k + 0.2 });
+      }
+    }
+    if (trailT > 0.05) {
+      trailT = 0;
+      for (const pr of G.proj) {
+        if ((pr.k === "ma" && pr.t >= pr.delay) || (pr.k === "md" && pr.z >= 1) || pr.k === "me" || pr.k === "mc" || pr.k === "aam" || (pr.k === "mb" && pr.t > pr.w.delay)) addFx({ k: "smoke", x: pr.x, y: pr.y, vx: 0, vy: 0, r: pr.k === "mb" ? 2.5 : 2, max: pr.k === "mb" ? 0.5 : 0.9 });
+        else if (pr.k === "tor") addFx({ k: "wake", x: pr.x, y: pr.y, r: 1.5, grow: 4, max: 2.5 });
+      }
+    }
+  }
+  for (const f of fx) {
+    if (f.delay > 0) { f.delay -= dt; continue; }
+    f.life += dt;
+    if (f.vx) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.97; f.vy *= 0.97; }
+  }
+  for (let i = fx.length - 1; i >= 0; i--) if (fx[i].life >= fx[i].max) fx.splice(i, 1);
+  for (const f of floaters) f.life += dt;
+  for (let i = floaters.length - 1; i >= 0; i--) if (floaters[i].life > 2) floaters.splice(i, 1);
+
+  const p = byId(G.playerId);
+  if (p && state !== "menu") {
+    let fol = p;
+    if (ctrl !== -1) {  // follow the controlled squadron(s): centre of their planes
+      const pls = G.planes.filter(q => q.owner === p.id && isCtrl(q.sq));
+      if (pls.length) fol = { x: pls.reduce((a, q) => a + q.x, 0) / pls.length, y: pls.reduce((a, q) => a + q.y, 0) / pls.length, h: pls[0].h, v: pls.length === 1 ? pls[0].v : 0 };
+    }
+    const la = fol === p ? 0.9 : 0.5;
+    const tx = fol.x + Math.cos(fol.h) * fol.v * la, ty = fol.y + Math.sin(fol.h) * fol.v * la;
+    const k = 1 - Math.pow(0.02, dt);
+    cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k;
+  } else { cam.x += 12 * dt; cam.y += 4 * dt; }
+  shake = Math.max(0, shake - dt * 30);
+
+  render(now / 1000);
+  if (state !== "menu") updateHud();
+  requestAnimationFrame(frame);
+}
+
+/* ---- rendering ---- */
+const COL = { deep: "#06141f", sea: "#0a2131", chart: "143,195,214", hull: "#d9e0e5", hullEdge: "#8ea3ad", deck: "#b3c0c7", accent: "#5fd6c3", enemyHull: "#4a2d2a", enemyEdge: "#d9644a", enemyDeck: "#6b3d35", shell: "#ffd27a", danger: "#ff5747" };
+
+function worldTransform() {
+  const sx = shake ? rnd(-shake, shake) : 0, sy = shake ? rnd(-shake, shake) : 0;
+  ctx.setTransform(DPR * zoom, 0, 0, DPR * zoom, DPR * (W / 2 - cam.x * zoom + sx), DPR * (H / 2 - cam.y * zoom + sy));
+}
+function hash(a, b) { let h = (a * 374761393 + b * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+
+function drawSea(t) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = COL.deep; ctx.fillRect(0, 0, W, H);
+  worldTransform();
+  const vw = W / zoom / 2 + 60, vh = H / zoom / 2 + 60;
+  const x0 = cam.x - vw, x1 = cam.x + vw, y0 = cam.y - vh, y1 = cam.y + vh;
+  ctx.fillStyle = COL.sea; ctx.fillRect(-WORLD, -WORLD, WORLD * 2, WORLD * 2);
+  const cell = 160;
+  ctx.fillStyle = `rgba(${COL.chart},0.10)`;
+  for (let gx = Math.floor(x0 / cell); gx <= Math.floor(x1 / cell); gx++)
+    for (let gy = Math.floor(y0 / cell); gy <= Math.floor(y1 / cell); gy++)
+      for (let k = 0; k < 2; k++) {
+        const hx = hash(gx * 3 + k, gy), hy = hash(gy * 5 + k, gx + 7), ph = hash(gx, gy * 9 + k);
+        ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 0.8 + ph * TAU);
+        ctx.fillRect(gx * cell + hx * cell, gy * cell + hy * cell, 7, 1.5);
+      }
+  ctx.globalAlpha = 1;
+  const stepG = 200;
+  ctx.lineWidth = 1 / zoom;
+  for (let gx = Math.ceil(x0 / stepG) * stepG; gx <= x1; gx += stepG) {
+    if (gx < -WORLD || gx > WORLD) continue;
+    ctx.strokeStyle = `rgba(${COL.chart},${gx % 1000 === 0 ? 0.16 : 0.06})`;
+    ctx.beginPath(); ctx.moveTo(gx, Math.max(y0, -WORLD)); ctx.lineTo(gx, Math.min(y1, WORLD)); ctx.stroke();
+  }
+  for (let gy = Math.ceil(y0 / stepG) * stepG; gy <= y1; gy += stepG) {
+    if (gy < -WORLD || gy > WORLD) continue;
+    ctx.strokeStyle = `rgba(${COL.chart},${gy % 1000 === 0 ? 0.16 : 0.06})`;
+    ctx.beginPath(); ctx.moveTo(Math.max(x0, -WORLD), gy); ctx.lineTo(Math.min(x1, WORLD), gy); ctx.stroke();
+  }
+  ctx.fillStyle = `rgba(${COL.chart},0.35)`;
+  ctx.font = `${11 / zoom}px "Chakra Petch", monospace`;
+  for (let gx = Math.ceil(x0 / 1000) * 1000; gx <= x1; gx += 1000) if (Math.abs(gx) <= WORLD) ctx.fillText((gx >= 0 ? "E" : "W") + String(Math.abs(gx / 100)).padStart(2, "0"), gx + 4 / zoom, cam.y + H / zoom / 2 - 10 / zoom);
+  for (let gy = Math.ceil(y0 / 1000) * 1000; gy <= y1; gy += 1000) if (Math.abs(gy) <= WORLD) ctx.fillText((gy <= 0 ? "N" : "S") + String(Math.abs(gy / 100)).padStart(2, "0"), cam.x - W / zoom / 2 + 6 / zoom, gy - 4 / zoom);
+  ctx.strokeStyle = "rgba(255,87,71,0.45)"; ctx.lineWidth = 2 / zoom;
+  ctx.setLineDash([14 / zoom, 10 / zoom]); ctx.strokeRect(-WORLD, -WORLD, WORLD * 2, WORLD * 2); ctx.setLineDash([]);
+}
+
+function hullPath(L, Wd) {
+  const h = L / 2, w = Wd / 2;
+  ctx.beginPath();
+  ctx.moveTo(h, 0);
+  ctx.bezierCurveTo(h * 0.62, -w * 0.92, h * 0.15, -w, -h * 0.55, -w * 0.96);
+  ctx.quadraticCurveTo(-h, -w * 0.85, -h, 0);
+  ctx.quadraticCurveTo(-h, w * 0.85, -h * 0.55, w * 0.96);
+  ctx.bezierCurveTo(h * 0.15, w, h * 0.62, w * 0.92, h, 0);
+  ctx.closePath();
+}
+
+function rrect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+}
+
+function drawMount(s, m, enemy, isPlayer) {
+  const w = m.w;
+  ctx.save();
+  ctx.translate(m.mx, m.my);
+  const dark = enemy ? "#1a0f0e" : "#2b3a41", mid = enemy ? "#7a3e33" : "#eef3f5", edge = enemy ? "#2a1715" : "#4d606a", light = enemy ? "#8e4a3c" : "#9fb2bb";
+  ctx.lineWidth = 1.1; ctx.lineCap = "round";
+  if (w.kind === "field") { ctx.restore(); return; }
+  if (w.kind === "shell") {
+    ctx.rotate(m.a - s.h);
+    const bl = w.barrel * (1 - m.recoil * 0.22);
+    for (let b = 0; b < w.barrels; b++) {
+      const side = (b - (w.barrels - 1) / 2) * (w.bw + 0.9);
+      ctx.strokeStyle = dark; ctx.lineWidth = w.bw;
+      ctx.beginPath(); ctx.moveTo(0, side); ctx.lineTo(bl, side); ctx.stroke();
+      ctx.strokeStyle = light; ctx.lineWidth = w.bw * 0.45;
+      ctx.beginPath(); ctx.moveTo(w.tr * 0.4, side); ctx.lineTo(bl, side); ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(w.tr * 1.05, -w.tr * 0.8); ctx.lineTo(w.tr * 1.05, w.tr * 0.8);
+    ctx.arc(0, 0, w.tr, Math.PI * 0.32, Math.PI * 1.68); ctx.closePath();
+    ctx.fillStyle = mid; ctx.fill(); ctx.lineWidth = 1.1; ctx.strokeStyle = edge; ctx.stroke();
+    if (m.chT > 0) {  // railgun charge glow at the muzzle
+      const k = 1 - m.chT / w.charge;
+      ctx.fillStyle = `rgba(140,230,255,${0.35 + 0.55 * k})`; ctx.beginPath(); ctx.arc(w.barrel, 0, 2 + 5 * k, 0, TAU); ctx.fill();
+    }
+  } else if (w.kind === "me") {
+    ctx.rotate(m.a - s.h);
+    ctx.fillStyle = mid; ctx.strokeStyle = edge;
+    rrect(-6, -5, 14, 10, 2.5); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(4, 0, 3, 0, TAU); ctx.fill();
+  } else if (w.kind === "ma") {
+    ctx.rotate(m.a - s.h);
+    ctx.fillStyle = mid; ctx.strokeStyle = edge;
+    rrect(-6, -6, 12, 12, 2.5); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = dark;
+    for (const [x, y] of [[-2.5, -2.5], [2.5, -2.5], [-2.5, 2.5], [2.5, 2.5]]) { ctx.beginPath(); ctx.arc(x + 1, y, 1.6, 0, TAU); ctx.fill(); }
+  } else if (w.kind === "mb" || w.kind === "mc" || w.kind === "md") {
+    ctx.fillStyle = mid; ctx.strokeStyle = edge;
+    rrect(-7, -5, 14, 10, 1.5); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = dark; ctx.lineWidth = 0.8;
+    for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(i * 4.6, -5); ctx.lineTo(i * 4.6, 5); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(7, 0); ctx.stroke();
+    if (w.kind === "mc") { ctx.fillStyle = enemy ? "#d9a35a" : COL.shell; ctx.beginPath(); ctx.arc(0, 0, 2.2, 0, TAU); ctx.fill(); }
+  } else if (w.kind === "tor") {
+    ctx.rotate(m.a - s.h);
+    const n = w.count, sp = 3.6;
+    ctx.fillStyle = mid; ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, TAU); ctx.fill();
+    for (let i = 0; i < n; i++) {
+      const y = (i - (n - 1) / 2) * sp;
+      ctx.fillStyle = dark; ctx.fillRect(-8, y - 1.4, 18, 2.8);
+      ctx.fillStyle = light; ctx.fillRect(4, y - 0.8, 6, 1.6);
+    }
+  }
+  if (isPlayer && s.alive && s.id) {
+    ctx.beginPath(); ctx.arc(0, 0, 1.8, 0, TAU);
+    ctx.fillStyle = m.cd <= 0 ? (m.aligned && m.inRange ? COL.accent : COL.shell) : "#5d6f78"; ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawField(s, p, t) {
+  const f = s.field, mine = p && s.team === p.team;
+  if (f.state === "up") {
+    const a = 0.25 + 0.5 * (f.hp / FIELD.hp);
+    const g = ctx.createRadialGradient(s.x, s.y, FIELD.radius * 0.6, s.x, s.y, FIELD.radius);
+    g.addColorStop(0, "rgba(120,200,255,0)"); g.addColorStop(1, `rgba(120,200,255,${0.18 * a})`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(s.x, s.y, FIELD.radius, 0, TAU); ctx.fill();
+    ctx.strokeStyle = `rgba(150,220,255,${0.35 + 0.4 * a + 0.1 * Math.sin(t * 4)})`; ctx.lineWidth = 2 / zoom;
+    ctx.beginPath(); ctx.arc(s.x, s.y, FIELD.radius, 0, TAU); ctx.stroke();
+  } else if (f.state === "charge" || f.state === "ready") {
+    // burst warning, visible to everyone
+    const k = f.state === "charge" ? 1 - f.t / FIELD.charge : 0;
+    ctx.strokeStyle = mine ? `rgba(255,170,90,${0.35 + 0.5 * k})` : `rgba(255,87,71,${0.4 + 0.5 * k})`; ctx.lineWidth = (1.5 + 2 * k) / zoom;
+    ctx.setLineDash(f.state === "ready" ? [10 / zoom, 10 / zoom] : []);
+    ctx.beginPath(); ctx.arc(s.x, s.y, FIELD.blastR, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    if (f.state === "charge") {
+      ctx.fillStyle = `rgba(255,110,70,${0.06 + 0.12 * k})`; ctx.beginPath(); ctx.arc(s.x, s.y, FIELD.blastR * k, 0, TAU); ctx.fill();
+    }
+  }
+}
+function drawBlockHull(s, enemy) {  // 超ド級B: slab hull, two flight decks, central missile bank, generator ring, stern sponsons
+  const c = s.c, L = c.len, Wd = c.wid;
+  const hullC = enemy ? COL.enemyHull : COL.hull, edge = enemy ? COL.enemyEdge : COL.hullEdge, deck = enemy ? COL.enemyDeck : COL.deck;
+  ctx.fillStyle = hullC; ctx.strokeStyle = edge; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(L * 0.5, -Wd * 0.3); ctx.lineTo(L * 0.42, -Wd * 0.42); ctx.lineTo(-L * 0.5, -Wd * 0.42); ctx.lineTo(-L * 0.5, Wd * 0.42);
+  ctx.lineTo(L * 0.42, Wd * 0.42); ctx.lineTo(L * 0.5, Wd * 0.3); ctx.closePath(); ctx.fill(); ctx.stroke();
+  for (const sy of [-1, 1]) {  // stern sponsons for the main guns
+    ctx.fillRect(-L * 0.5, sy > 0 ? Wd * 0.38 : -Wd * 0.56, L * 0.26, Wd * 0.18); ctx.strokeRect(-L * 0.5, sy > 0 ? Wd * 0.38 : -Wd * 0.56, L * 0.26, Wd * 0.18);
+  }
+  for (const sy of [-1, 1]) {  // flight decks
+    const y0 = sy > 0 ? Wd * 0.18 : -Wd * 0.42;
+    ctx.fillStyle = enemy ? "#3a2421" : "#56676f"; ctx.fillRect(-L * 0.12, y0, L * 0.56, Wd * 0.24);
+    ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 0.8; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(-L * 0.1, y0 + Wd * 0.12); ctx.lineTo(L * 0.42, y0 + Wd * 0.12); ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.fillStyle = deck; ctx.fillRect(-L * 0.08, -Wd * 0.16, L * 0.46, Wd * 0.32);  // missile bank
+  const on = s.field && s.field.state === "up";
+  ctx.strokeStyle = on ? "#7fd0ff" : enemy ? "#2a1715" : "#4d606a"; ctx.lineWidth = 3;  // generator
+  ctx.beginPath(); ctx.arc(-L * 0.24, 0, Wd * 0.14, 0, TAU); ctx.stroke();
+  ctx.fillStyle = enemy ? "#150c0b" : "#26343b"; ctx.beginPath(); ctx.arc(-L * 0.24, 0, Wd * 0.08, 0, TAU); ctx.fill();
+  for (const sq of s.air) {  // parked aircraft
+    const n = sq.slots.filter(x => x.st === "deck").length;
+    for (let i = 0; i < n; i++) {
+      ctx.save(); ctx.translate(sq.mx + 7 - i * 8, sq.my + (i % 2 ? 4 : -4)); ctx.scale(0.5 * (sq.w.size || 1), 0.5 * (sq.w.size || 1));
+      planePath(sq.w.ptype); ctx.fillStyle = enemy ? "#ff9a7a" : "#e8f1f4"; ctx.fill(); ctx.restore();
+    }
+  }
+}
+
+function drawTwinHull(s, enemy) {  // 超ド級: two hulls joined by a central deck, boost flames at the sterns
+  const c = s.c, L = c.len, Wd = c.wid;
+  const hullC = enemy ? COL.enemyHull : COL.hull, edge = enemy ? COL.enemyEdge : COL.hullEdge, deck = enemy ? COL.enemyDeck : COL.deck;
+  if (s.boostOn || s.dodgeT > 0) for (const sy of [-0.33, 0.33]) {
+    const f = 14 + Math.random() * 10;
+    ctx.fillStyle = "rgba(255,170,80,0.85)"; ctx.beginPath(); ctx.ellipse(-L * 0.47 - f / 2, sy * Wd, f, Wd * 0.08, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = "rgba(255,240,200,0.9)"; ctx.beginPath(); ctx.ellipse(-L * 0.47 - f / 4, sy * Wd, f / 2.5, Wd * 0.04, 0, 0, TAU); ctx.fill();
+  }
+  ctx.fillStyle = hullC; ctx.strokeStyle = edge; ctx.lineWidth = 1.5;
+  ctx.fillRect(-L * 0.3, -Wd * 0.3, L * 0.5, Wd * 0.6); ctx.strokeRect(-L * 0.3, -Wd * 0.3, L * 0.5, Wd * 0.6);  // central deck
+  ctx.beginPath(); ctx.moveTo(L * 0.2, -Wd * 0.3); ctx.quadraticCurveTo(L * 0.34, 0, L * 0.2, Wd * 0.3); ctx.fill(); ctx.stroke();  // bow fairing
+  for (const sy of [-0.33, 0.33]) {
+    ctx.save(); ctx.translate(0, sy * Wd);
+    hullPath(L * 0.98, Wd * 0.34); ctx.fillStyle = hullC; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = deck; hullPath(L * 0.84, Wd * 0.2); ctx.fill();
+    ctx.restore();
+  }
+  ctx.strokeStyle = enemy ? "#2a1715" : "#4d606a"; ctx.lineWidth = 0.8;  // deck grid behind the cannon
+  for (let i = 0; i <= 4; i++) { const x = -L * 0.24 + i * L * 0.05; ctx.beginPath(); ctx.moveTo(x, -Wd * 0.18); ctx.lineTo(x, Wd * 0.18); ctx.stroke(); }
+  for (let j = -2; j <= 2; j++) { ctx.beginPath(); ctx.moveTo(-L * 0.24, j * Wd * 0.08); ctx.lineTo(-L * 0.04, j * Wd * 0.08); ctx.stroke(); }
+}
+function drawShip(s, isPlayer, z) {
+  const c = s.c, enemy = s.team !== 0;
+  const zz = z || zoom;
+  const sinkK = s.alive ? 0 : Math.min(1, s.sink / 3);
+  ctx.save();
+  ctx.translate(s.x, s.y);
+  ctx.globalAlpha = 1 - sinkK * 0.85;
+  ctx.save(); ctx.rotate(s.h); ctx.translate(4, 5); hullPath(c.len, c.wid); ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fill(); ctx.restore();
+  ctx.save();
+  ctx.rotate(s.h + sinkK * 0.4);
+  const sc = 1 - sinkK * 0.25; ctx.scale(sc, sc);
+  if (c.twin) drawTwinHull(s, enemy); else if (c.block) drawBlockHull(s, enemy); else {
+  hullPath(c.len, c.wid);
+  ctx.fillStyle = enemy ? COL.enemyHull : COL.hull; ctx.fill();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = enemy ? COL.enemyEdge : COL.hullEdge; ctx.stroke();
+  ctx.fillStyle = enemy ? COL.enemyDeck : COL.deck;
+  hullPath(c.len * 0.8, c.wid * 0.62); ctx.fill();
+  }
+  if (c.twin || c.block) {} else if (c.carrier) drawCarrierDeck(s, enemy); else {
+  // bridge / superstructure placed in the largest gap between centreline mounts
+  const xs = s.mounts.filter(m => !m.my).map(m => m.mx).concat([c.len * 0.42, -c.len * 0.42]).sort((a, b) => b - a);
+  let gx = 0, gw = 0;
+  for (let i = 0; i < xs.length - 1; i++) if (xs[i] - xs[i + 1] > gw) { gw = xs[i] - xs[i + 1]; gx = (xs[i] + xs[i + 1]) / 2; }
+  const ssL = Math.max(4, Math.min(gw - 14, c.len * 0.22));
+  ctx.fillStyle = enemy ? "#2e1c1a" : "#6f838d";
+  ctx.fillRect(gx - ssL / 2, -c.wid * 0.2, ssL, c.wid * 0.4);
+  ctx.beginPath(); ctx.ellipse(gx - ssL * 0.15, 0, c.wid * 0.13, c.wid * 0.11, 0, 0, TAU); ctx.fillStyle = enemy ? "#150c0b" : "#26343b"; ctx.fill();
+  }
+  if (s.alive && s.id && G.time - s.lastHit < 0.12) { hullPath(c.len, c.wid); ctx.fillStyle = "rgba(255,210,122,0.55)"; ctx.fill(); }
+  for (const m of s.mounts) drawMount(s, m, enemy, isPlayer);
+  ctx.restore();
+  ctx.restore();
+  if (s.alive && enemy) {
+    const bw = Math.max(40, c.len * 0.8), y = s.y - c.len * 0.4 - c.wid - 8;
+    ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(s.x - bw / 2, y, bw, 4 / zz);
+    ctx.fillStyle = COL.enemyEdge; ctx.fillRect(s.x - bw / 2, y, bw * s.hp / c.hp, 4 / zz);
+    ctx.fillStyle = "rgba(232,241,244,0.6)"; ctx.font = `${10 / zz}px "Zen Kaku Gothic New", sans-serif`; ctx.textAlign = "center";
+    ctx.fillText(c.name, s.x, y - 4 / zz); ctx.textAlign = "start";
+  }
+}
+
+function drawRadar(s) {
+  if (!s.radar || !s.alive) return;
+  const r = s.radar;
+  ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.arc(s.x, s.y, r.range, r.a - r.half, r.a + r.half); ctx.closePath();
+  ctx.fillStyle = r.lock ? "rgba(255,236,150,0.2)" : "rgba(255,236,150,0.1)"; ctx.fill();
+  ctx.strokeStyle = r.lock ? "rgba(255,236,150,0.65)" : "rgba(255,236,150,0.35)"; ctx.lineWidth = 1.4 / zoom; ctx.stroke();
+}
+
+function drawFx(layer) {
+  for (const f of fx) {
+    if (f.delay > 0) continue;
+    const k = f.life / f.max;
+    if (layer === 0) {
+      if (f.k === "wake") { ctx.strokeStyle = `rgba(220,240,245,${0.22 * (1 - k)})`; ctx.lineWidth = 1.4 / zoom; ctx.beginPath(); ctx.arc(f.x, f.y, f.r + f.grow * k * 2, 0, TAU); ctx.stroke(); }
+      else if (f.k === "ring") { ctx.strokeStyle = `rgba(230,245,250,${0.6 * (1 - k)})`; ctx.lineWidth = 2 / zoom; ctx.beginPath(); ctx.arc(f.x, f.y, f.r + (f.sz || 26) * k, 0, TAU); ctx.stroke(); }
+    } else {
+      if (f.k === "drop") { ctx.fillStyle = `rgba(235,248,252,${1 - k})`; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, TAU); ctx.fill(); }
+      else if (f.k === "column") { ctx.fillStyle = `rgba(240,250,255,${0.8 * (1 - k)})`; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 + k * 0.6), 0, TAU); ctx.fill(); }
+      else if (f.k === "smoke") { ctx.fillStyle = f.dark ? `rgba(30,30,32,${0.5 * (1 - k)})` : `rgba(200,205,208,${0.35 * (1 - k)})`; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 + k * 1.5), 0, TAU); ctx.fill(); }
+      else if (f.k === "flash") { ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.a); ctx.fillStyle = `rgba(255,220,140,${1 - k})`; ctx.beginPath(); ctx.ellipse(f.r * 0.7, 0, f.r * 1.3, f.r * 0.6, 0, 0, TAU); ctx.fill(); ctx.restore(); }
+      else if (f.k === "spark") { ctx.fillStyle = `rgba(150,220,255,${0.9 * (1 - k)})`; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (0.5 + k), 0, TAU); ctx.fill(); }
+      else if (f.k === "tracer") { ctx.strokeStyle = `rgba(255,220,120,${0.8 * (1 - k)})`; ctx.lineWidth = 1.1 / zoom; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x2, f.y2); ctx.stroke(); }
+      else if (f.k === "flak") { ctx.fillStyle = `rgba(40,40,44,${0.7 * (1 - k)})`; ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 + k), 0, TAU); ctx.fill(); if (k < 0.15) { ctx.fillStyle = "rgba(255,200,120,0.9)"; ctx.beginPath(); ctx.arc(f.x, f.y, 4, 0, TAU); ctx.fill(); } }
+      else if (f.k === "boom") {
+        const r = f.r * (0.5 + k);
+        const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+        g.addColorStop(0, `rgba(255,240,190,${1 - k})`); g.addColorStop(0.4, `rgba(255,140,60,${0.9 * (1 - k)})`); g.addColorStop(1, "rgba(255,80,40,0)");
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, TAU); ctx.fill();
+      }
+    }
+  }
+}
+
+function drawShells(p) {
+  for (const sh of G.shells) {
+    const k = sh.t / sh.T;
+    const enemyShell = !p || sh.team !== p.team;
+    if (sh.rail && sh.blast) {  // charge cannon in flight: show where it bursts and how big
+      ctx.strokeStyle = enemyShell ? "rgba(255,87,71,0.7)" : "rgba(150,235,255,0.5)"; ctx.lineWidth = 1.5 / zoom;
+      ctx.setLineDash([8 / zoom, 6 / zoom]); ctx.beginPath(); ctx.arc(sh.tx, sh.ty, sh.blastR, 0, TAU); ctx.stroke();
+      if (sh.blastR2) { ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(sh.tx, sh.ty, sh.blastR2, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; }
+      ctx.setLineDash([]);
+    }
+    if (!sh.small && !sh.rail) {
+      if (enemyShell) {
+        const r = 8 + 30 * (1 - k);
+        if (sh.blastR) { ctx.fillStyle = `rgba(255,87,71,${0.06 + 0.1 * k})`; ctx.beginPath(); ctx.arc(sh.tx, sh.ty, sh.blastR, 0, TAU); ctx.fill(); }
+        ctx.strokeStyle = `rgba(255,87,71,${0.25 + 0.55 * k})`; ctx.lineWidth = 1.6 / zoom;
+        ctx.beginPath(); ctx.arc(sh.tx, sh.ty, r, 0, TAU); ctx.stroke();
+        ctx.fillStyle = `rgba(255,87,71,${0.08 + 0.12 * k})`; ctx.beginPath(); ctx.arc(sh.tx, sh.ty, 8, 0, TAU); ctx.fill();
+      } else {
+        const s = 5;
+        ctx.strokeStyle = `rgba(95,214,195,${0.2 + 0.4 * k})`; ctx.lineWidth = 1.2 / zoom;
+        ctx.beginPath(); ctx.moveTo(sh.tx - s, sh.ty - s); ctx.lineTo(sh.tx + s, sh.ty + s); ctx.moveTo(sh.tx + s, sh.ty - s); ctx.lineTo(sh.tx - s, sh.ty + s); ctx.stroke();
+      }
+    }
+    const gx = sh.sx + (sh.tx - sh.sx) * k, gy = sh.sy + (sh.ty - sh.sy) * k;
+    const hmax = sh.small ? 3 : sh.rail ? 1.5 : sh.arc ? Math.min(170, sh.T * 30) : Math.min(60, sh.T * 14);
+    const alt = sh.bomb ? (1 - k) * 24 : 4 * k * (1 - k) * hmax;
+    if (!sh.small) { ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.arc(gx + alt * 0.25, gy + alt * 0.35, 2.2, 0, TAU); ctx.fill(); }
+    const k2 = Math.max(0, k - (sh.small ? 0.15 : sh.rail ? 110 / (Math.hypot(sh.tx - sh.sx, sh.ty - sh.sy) || 1) : 0.05));
+    const px = sh.sx + (sh.tx - sh.sx) * k2, py = sh.sy + (sh.ty - sh.sy) * k2 - (sh.bomb ? (1 - k2) * 24 : 4 * k2 * (1 - k2) * hmax);
+    ctx.strokeStyle = sh.rail ? "rgba(150,235,255,0.9)" : enemyShell ? "rgba(255,150,110,0.55)" : "rgba(255,225,150,0.55)"; ctx.lineWidth = (sh.small ? 1.2 : sh.rail ? (sh.blast ? 7 : 3) : 2) / zoom;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(gx, gy - alt); ctx.stroke();
+    ctx.fillStyle = enemyShell ? "#ffb08a" : COL.shell;
+    if (sh.rail && sh.blast) { ctx.fillStyle = "rgba(170,240,255,0.95)"; ctx.beginPath(); ctx.arc(gx, gy, 7, 0, TAU); ctx.fill(); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(gx, gy, 3.5, 0, TAU); ctx.fill(); }
+    else { ctx.beginPath(); ctx.arc(gx, gy - alt, (sh.small ? 1.3 : 2.4) + alt * 0.03, 0, TAU); ctx.fill(); }
+  }
+}
+
+function drawProj(p) {
+  for (const pr of G.proj) {
+    const mine = p && pr.team === p.team;
+    ctx.save(); ctx.translate(pr.x, pr.y);
+    if (pr.k === "tor") {
+      ctx.strokeStyle = "rgba(225,240,245,0.35)"; ctx.lineWidth = 2 / zoom;
+      ctx.beginPath(); ctx.moveTo(-Math.cos(pr.a) * 46, -Math.sin(pr.a) * 46); ctx.lineTo(0, 0); ctx.stroke();
+      ctx.rotate(pr.a);
+      ctx.fillStyle = mine ? "#cfe7ec" : "#ff8a70"; ctx.beginPath(); ctx.ellipse(0, 0, 6, 1.7, 0, 0, TAU); ctx.fill();
+      if (!mine) { ctx.fillStyle = "rgba(255,87,71,0.85)"; ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(14, -5); ctx.lineTo(14, 5); ctx.closePath(); ctx.fill(); }
+    } else if (pr.k === "ma") {
+      if (pr.t >= pr.delay) {
+        ctx.rotate(pr.a);
+        ctx.fillStyle = "rgba(255,170,80,0.9)"; ctx.beginPath(); ctx.arc(-5, 0, 1.8 + Math.random(), 0, TAU); ctx.fill();
+        ctx.fillStyle = mine ? "#eef3f5" : "#ffb08a"; ctx.fillRect(-4, -1.2, 8, 2.4);
+      }
+    } else if (pr.k === "mb") {
+      const pre = pr.t < pr.w.delay;
+      const rem = pr.w.range - pr.trav;
+      ctx.rotate(pr.a);
+      // fixed-heading telegraph, visible to everyone
+      ctx.strokeStyle = mine ? "rgba(95,214,195,0.35)" : `rgba(255,87,71,${pre ? 0.75 : 0.45})`; ctx.lineWidth = (pre ? 2 : 1.2) / zoom;
+      ctx.setLineDash([10 / zoom, 8 / zoom]); ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(rem, 0); ctx.stroke(); ctx.setLineDash([]);
+      const sc = pre ? 0.7 + 0.6 * (pr.t / pr.w.delay) : 1;
+      ctx.scale(sc, sc);
+      if (!pre) { ctx.strokeStyle = "rgba(255,240,200,0.7)"; ctx.lineWidth = 2 / zoom; ctx.beginPath(); ctx.moveTo(-20, 0); ctx.lineTo(0, 0); ctx.stroke(); }
+      ctx.fillStyle = mine ? "#eef3f5" : "#ffb08a"; ctx.fillRect(-5, -1.6, 10, 3.2);
+    } else if (pr.k === "md") {
+      if (pr.t >= pr.delay) {
+        ctx.rotate(pr.a); const sc = pr.z < 1 ? 0.6 + 0.5 * pr.z : 1; ctx.scale(sc, sc);
+        if (pr.z >= 1) { ctx.fillStyle = "rgba(255,170,80,0.9)"; ctx.beginPath(); ctx.arc(-4, 0, 1.4 + Math.random(), 0, TAU); ctx.fill(); }
+        ctx.fillStyle = mine ? "#eef3f5" : "#ffb08a"; ctx.fillRect(-3.5, -1.1, 7, 2.2);
+      }
+    } else if (pr.k === "me") {
+      ctx.restore(); ctx.save();
+      // destination and blast radius, visible to everyone
+      ctx.strokeStyle = mine ? "rgba(95,214,195,0.35)" : "rgba(255,87,71,0.6)"; ctx.lineWidth = 1.3 / zoom;
+      ctx.setLineDash([5 / zoom, 5 / zoom]); ctx.beginPath(); ctx.arc(pr.ax, pr.ay, pr.w.blastR * 0.6, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      ctx.translate(pr.x, pr.y); ctx.rotate(pr.a);
+      ctx.fillStyle = "rgba(255,170,80,0.9)"; ctx.beginPath(); ctx.arc(-7, 0, 2.2 + Math.random(), 0, TAU); ctx.fill();
+      ctx.fillStyle = mine ? "#eef3f5" : "#ffb08a"; ctx.fillRect(-6, -2, 12, 4);
+    } else if (pr.k === "aam") {
+      ctx.rotate(pr.a);
+      ctx.fillStyle = "rgba(255,170,80,0.9)"; ctx.beginPath(); ctx.arc(-4, 0, 1.4 + Math.random(), 0, TAU); ctx.fill();
+      ctx.fillStyle = mine ? "#eef3f5" : "#ffb08a"; ctx.fillRect(-3, -1, 7, 2);
+    } else if (pr.k === "mc") {
+      ctx.rotate(pr.a);
+      ctx.fillStyle = "rgba(255,170,80,0.9)"; ctx.beginPath(); ctx.arc(-5, 0, 1.6 + Math.random(), 0, TAU); ctx.fill();
+      ctx.fillStyle = pr.guided ? COL.shell : (mine ? "#cfd8dc" : "#ffb08a"); ctx.fillRect(-4, -1.4, 9, 2.8);
+    }
+    ctx.restore();
+  }
+}
+
+function drawPlayerOverlay(p, t) {
+  if (!p || !p.alive) return;
+  ctx.strokeStyle = `rgba(${COL.chart},0.14)`; ctx.lineWidth = 1 / zoom;
+  ctx.setLineDash([6 / zoom, 8 / zoom]);
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.mainRange, 0, TAU); ctx.stroke();
+  if (p.dest) {
+    ctx.strokeStyle = "rgba(95,214,195,0.35)";
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.dest.x, p.dest.y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = COL.accent; ctx.lineWidth = 1.8 / zoom;
+    const r = 10 + Math.sin(t * 5) * 2, d = p.dest;
+    ctx.beginPath(); ctx.arc(d.x, d.y, r, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(d.x - r - 6, d.y); ctx.lineTo(d.x - r + 4, d.y); ctx.moveTo(d.x + r - 4, d.y); ctx.lineTo(d.x + r + 6, d.y);
+    ctx.moveTo(d.x, d.y - r - 6); ctx.lineTo(d.x, d.y - r + 4); ctx.moveTo(d.x, d.y + r - 4); ctx.lineTo(d.x, d.y + r + 6); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  const tg = p.target;
+  if (tg) {
+    const locked = p.input.lock === tg.id;
+    const r = tg.c.len * 0.6 + 6, b = 10;
+    if (locked) {
+      ctx.fillStyle = COL.shell; ctx.font = `700 ${11 / zoom}px "Chakra Petch", sans-serif`; ctx.textAlign = "center";
+      ctx.fillText("LOCK", tg.x, tg.y + r + 14 / zoom); ctx.textAlign = "start";
+    }
+    ctx.strokeStyle = locked ? COL.shell : "rgba(255,210,122,0.6)"; ctx.lineWidth = 2 / zoom;
+    for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      ctx.beginPath(); ctx.moveTo(tg.x + sx * r, tg.y + sy * (r - b)); ctx.lineTo(tg.x + sx * r, tg.y + sy * r); ctx.lineTo(tg.x + sx * (r - b), tg.y + sy * r); ctx.stroke();
+    }
+    const m = p.mounts.find(q => q.w.group === "gun" && q.aim) || p.mounts.find(q => q.aim);
+    if (m) {
+      const ok = p.mounts.some(q => q.aligned && q.inRange);
+      ctx.strokeStyle = ok ? COL.accent : "rgba(255,210,122,0.7)"; ctx.lineWidth = 2 / zoom;
+      ctx.setLineDash([3 / zoom, 5 / zoom]);
+      ctx.beginPath(); ctx.moveTo(tg.x, tg.y); ctx.lineTo(m.aim.x, m.aim.y); ctx.stroke(); ctx.setLineDash([]);
+      const d = 7;
+      ctx.beginPath(); ctx.moveTo(m.aim.x, m.aim.y - d); ctx.lineTo(m.aim.x + d, m.aim.y); ctx.lineTo(m.aim.x, m.aim.y + d); ctx.lineTo(m.aim.x - d, m.aim.y); ctx.closePath(); ctx.stroke();
+    }
+  }
+}
+
+function drawScreenOverlay(p) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.textAlign = "center";
+  ctx.font = `700 15px "Zen Kaku Gothic New", sans-serif`;
+  for (const f of floaters) {
+    const sx = W / 2 + (f.x - cam.x) * zoom, sy = H / 2 + (f.y - cam.y) * zoom - 30 - f.life * 20;
+    ctx.fillStyle = `rgba(255,210,122,${1 - f.life / 2})`; ctx.fillText(f.text, sx, sy);
+  }
+  ctx.textAlign = "start";
+  if (!p || !p.alive) return;
+  const mg = 26;
+  for (const s of G.ships) {
+    if (!s.alive || s.team === p.team) continue;
+    const sx = W / 2 + (s.x - cam.x) * zoom, sy = H / 2 + (s.y - cam.y) * zoom;
+    if (sx > 0 && sx < W && sy > 0 && sy < H) continue;
+    const dx = sx - W / 2, dy = sy - H / 2;
+    const k = Math.min((W / 2 - mg) / Math.abs(dx || 1e-6), (H / 2 - mg) / Math.abs(dy || 1e-6));
+    const ix = W / 2 + dx * k, iy = H / 2 + dy * k;
+    const dist = Math.hypot(s.x - p.x, s.y - p.y);
+    ctx.save(); ctx.translate(ix, iy); ctx.rotate(Math.atan2(dy, dx));
+    ctx.fillStyle = dist < p.mainRange ? COL.enemyEdge : "rgba(217,100,74,0.5)";
+    ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(-6, -7); ctx.lineTo(-6, 7); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* ---- aircraft ---- */
+const PLANE_SHAPES = {  // half outline (nose → tail centre), mirrored for the other side
+  bomb:  [[9, 0], [4, -1.8], [2.5, -11], [-0.5, -11], [-2, -1.8], [-7, -1.5], [-8.5, -5], [-10, -5], [-10, 0]],
+  torp:  [[8, 0], [3.5, -1.6], [2, -9.5], [-0.5, -9.5], [-2, -1.6], [-6.5, -1.3], [-8, -4.2], [-9.5, -4.2], [-9.5, 0]],
+  straf: [[7.5, 0], [2, -1.4], [-2, -7.5], [-4.2, -7.5], [-2.5, -1.4], [-6, -1.2], [-7.5, -3.5], [-8.5, -3.5], [-8.5, 0]],
+};
+function planePath(t) {
+  const pts = PLANE_SHAPES[t];
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  for (let i = pts.length - 2; i > 0; i--) ctx.lineTo(pts[i][0], -pts[i][1]);
+  ctx.closePath();
+}
+function drawCarrierDeck(s, enemy) {
+  const c = s.c;
+  ctx.fillStyle = enemy ? "#3a2421" : "#56676f";
+  ctx.fillRect(-c.len * 0.47, -c.wid * 0.36, c.len * 0.92, c.wid * 0.72);
+  ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 0.8; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(-c.len * 0.45, 0); ctx.lineTo(c.len * 0.43, 0); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = enemy ? "#150c0b" : "#26343b";
+  ctx.fillRect(-c.len * 0.1, c.wid * 0.3, c.len * 0.18, c.wid * 0.2);  // island
+  for (const sq of s.air) {
+    const n = sq.slots.filter(x => x.st === "deck").length;
+    for (let i = 0; i < n; i++) {
+      ctx.save(); ctx.translate(sq.mx + 6 - i * 9, (i % 2 ? 5 : -5)); ctx.scale(0.55 * (sq.w.size || 1), 0.55 * (sq.w.size || 1));
+      planePath(sq.w.ptype); ctx.fillStyle = enemy ? "#ff9a7a" : "#e8f1f4"; ctx.fill(); ctx.restore();
+    }
+  }
+}
+function drawPlanes(p) {
+  for (const pl of G.planes) {
+    const mine = p && pl.team === p.team, w = pl.w, sc = (0.75 + pl.alt * 0.4) * (w.size || 1);
+    ctx.save(); ctx.translate(pl.x + pl.alt * 10, pl.y + pl.alt * 14); ctx.rotate(pl.h); ctx.scale(sc * 0.9, sc * 0.9);
+    planePath(w.ptype); ctx.fillStyle = "rgba(0,0,0,0.28)"; ctx.fill(); ctx.restore();
+    if (w.ptype === "straf" && pl.state === "attack" && pl.phase >= 1) {  // locked strafing line, visible to everyone
+      ctx.save(); ctx.translate(pl.x, pl.y); ctx.rotate(pl.lockA);
+      ctx.strokeStyle = mine ? "rgba(95,214,195,0.4)" : "rgba(255,87,71,0.7)"; ctx.lineWidth = 1.6 / zoom;
+      ctx.setLineDash([8 / zoom, 6 / zoom]); ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(pl.phase === 1 ? 470 : 420 * (pl.t2 / 1.4) + 50, 0); ctx.stroke(); ctx.setLineDash([]);
+      ctx.restore();
+    }
+    ctx.save(); ctx.translate(pl.x, pl.y); ctx.rotate(pl.h); ctx.scale(sc, sc);
+    planePath(w.ptype);
+    ctx.fillStyle = G.time - (pl.hitT || -9) < 0.08 ? COL.shell : mine ? "#e8f1f4" : "#ff9a7a"; ctx.fill();
+    ctx.strokeStyle = mine ? "#2b5560" : "#4a1d14"; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.restore();
+    if (pl.hp < w.hp) {
+      ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(pl.x - 9, pl.y - 16, 18, 2.5 / zoom);
+      ctx.fillStyle = mine ? COL.accent : COL.enemyEdge; ctx.fillRect(pl.x - 9, pl.y - 16, 18 * pl.hp / w.hp, 2.5 / zoom);
+    }
+    if (p && pl.owner === p.id && isCtrl(pl.sq) && w.ptype === "bomb" && (pl.state === "attack" || pl.state === "form")) {
+      const c = bombImpact(pl), run = pl.state === "attack";
+      ctx.strokeStyle = run ? "rgba(255,210,122,0.85)" : "rgba(95,214,195,0.4)"; ctx.lineWidth = 1.3 / zoom;
+      ctx.setLineDash([4 / zoom, 5 / zoom]); ctx.beginPath(); ctx.moveTo(pl.x, pl.y); ctx.lineTo(c.x, c.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(c.x, c.y, 12, 0, TAU); ctx.moveTo(c.x - 18, c.y); ctx.lineTo(c.x + 18, c.y); ctx.moveTo(c.x, c.y - 18); ctx.lineTo(c.x, c.y + 18); ctx.stroke();
+    }
+    if (p && pl.owner === p.id && isCtrl(pl.sq)) { ctx.strokeStyle = "rgba(95,214,195,0.7)"; ctx.lineWidth = 1.2 / zoom; ctx.beginPath(); ctx.arc(pl.x, pl.y, 13, 0, TAU); ctx.stroke(); }
+  }
+  // controlled squadron: holding point and target
+  if (p && ctrl !== -1) for (const sq of ctrlSquads(p)) {
+    if (sq.goal) {
+      ctx.strokeStyle = "rgba(95,214,195,0.6)"; ctx.lineWidth = 1.4 / zoom; ctx.setLineDash([5 / zoom, 5 / zoom]);
+      ctx.beginPath(); ctx.arc(sq.goal.x, sq.goal.y, 40, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    }
+    const tg = byId(sq.tgtId);
+    if (tg && tg.alive) {
+      ctx.fillStyle = COL.accent; ctx.font = `700 ${11 / zoom}px "Zen Kaku Gothic New", sans-serif`; ctx.textAlign = "center";
+      ctx.fillText(`第${sq.idx + 1}航空隊 目標`, tg.x, tg.y - tg.c.len * 0.6 - 26 / zoom); ctx.textAlign = "start";
+      // movement prediction: where the target will be when a bomb released now hits the water
+      if (sq.w.ptype === "bomb") {
+        const fx = tg.x + tg.evx * BOMB_FALL, fy = tg.y + tg.evy * BOMB_FALL;
+        ctx.strokeStyle = "rgba(255,210,122,0.75)"; ctx.lineWidth = 1.4 / zoom;
+        ctx.setLineDash([6 / zoom, 5 / zoom]);
+        ctx.beginPath(); ctx.moveTo(tg.x, tg.y); ctx.lineTo(fx, fy); ctx.stroke();
+        ctx.save(); ctx.translate(fx, fy); ctx.rotate(tg.h); hullPath(tg.c.len, tg.c.wid); ctx.restore();
+        ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = "rgba(255,210,122,0.85)"; ctx.font = `${10 / zoom}px "Zen Kaku Gothic New", sans-serif`; ctx.textAlign = "center";
+        ctx.fillText(`${BOMB_FALL}秒後`, fx, fy + tg.c.wid + 14 / zoom); ctx.textAlign = "start";
+      }
+    }
+  }
+}
+
+function drawCharges(p) {  // railgun firing lines while charging, visible to everyone
+  for (const s of G.ships) if (s.alive) for (const m of s.mounts) {
+    if (!(m.chT > 0) || !m.lockAim) continue;
+    const mine = p && s.team === p.team, mp = mountPos(s, m), k = 1 - m.chT / m.w.charge;
+    ctx.strokeStyle = mine ? `rgba(150,235,255,${0.25 + 0.4 * k})` : `rgba(255,87,71,${0.35 + 0.5 * k})`; ctx.lineWidth = (1 + 1.5 * k) / zoom;
+    const dl = Math.hypot(m.lockAim.x - mp.x, m.lockAim.y - mp.y) || 1, rr = m.w.blast ? dl : m.w.range, ex = mp.x + (m.lockAim.x - mp.x) / dl * rr, ey = mp.y + (m.lockAim.y - mp.y) / dl * rr;
+    if (m.w.blast) { ctx.beginPath(); ctx.arc(ex, ey, m.w.blastR, 0, TAU); ctx.stroke(); if (m.w.blastR2) { ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(ex, ey, m.w.blastR2, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; } }
+    ctx.setLineDash([10 / zoom, 6 / zoom]); ctx.beginPath(); ctx.moveTo(mp.x, mp.y); ctx.lineTo(ex, ey); ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+
+function render(t) {
+  const p = byId(G.playerId);
+  drawSea(t);
+  if (state === "menu") return;
+  worldTransform();
+  drawFx(0);
+  for (const s of G.ships) drawRadar(s);
+  for (const s of G.ships) if (s.alive && s.field) drawField(s, p, t);
+  drawCharges(p);
+  drawPlayerOverlay(p, t);
+  for (const s of G.ships) if (!s.alive) drawShip(s, false);
+  for (const s of G.ships) if (s.alive) drawShip(s, s.id === G.playerId);
+  drawProj(p);
+  drawFx(1);
+  drawShells(p);
+  drawPlanes(p);
+  drawScreenOverlay(p);
+  drawMini(p);
+}
+
+function drawMini(p) {
+  const S = mini.width, k = S / (WORLD * 2);
+  mctx.clearRect(0, 0, S, S);
+  mctx.strokeStyle = "rgba(143,195,214,0.12)"; mctx.lineWidth = 1;
+  for (let i = 1; i < 6; i++) { const v = i * S / 6; mctx.beginPath(); mctx.moveTo(v, 0); mctx.lineTo(v, S); mctx.moveTo(0, v); mctx.lineTo(S, v); mctx.stroke(); }
+  mctx.strokeStyle = "rgba(143,195,214,0.4)";
+  mctx.strokeRect((cam.x - W / zoom / 2 + WORLD) * k, (cam.y - H / zoom / 2 + WORLD) * k, W / zoom * k, H / zoom * k);
+  for (const s of G.ships) {
+    if (!s.alive) continue;
+    const me = p && s.id === p.id;
+    mctx.fillStyle = me ? COL.accent : COL.enemyEdge;
+    mctx.beginPath(); mctx.arc((s.x + WORLD) * k, (s.y + WORLD) * k, me ? 5 : 3 + s.c.len / 40, 0, TAU); mctx.fill();
+  }
+  for (const pl of G.planes) { mctx.fillStyle = p && pl.team === p.team ? "#cfeee9" : "#ffb08a"; mctx.fillRect((pl.x + WORLD) * k - 1, (pl.y + WORLD) * k - 1, 2, 2); }
+}
+
+/* ---- HUD ---- */
+const el = id => document.getElementById(id);
+const hud = { score: el("score"), hpTxt: el("hpTxt"), hpfill: el("hpfill"), spd: el("spd"), status: el("status") };
+let lastHud = "", lastAir = "";
+const alVal = el("alVal");
+const atkVal = el("atkVal");
+const airPanel = el("airPanel");
+function updateHud() {
+  const p = byId(G.playerId);
+  if (!p) return;
+  hud.score.textContent = G.score;
+  if (G.mode === "mission") {
+    const left = G.ships.filter(s => s.alive && s.team === 1).length, tot = MISSIONS[G.mi].waves.length;
+    el("waveTxt").textContent = G.cleared ? "完了" : left ? `${G.wave} / ${tot} ・ 残り${left}隻` : G.wave === 0 ? "まもなく開始" : `${G.wave} / ${tot} ・ 次のウェーブ接近中`;
+  }
+  hud.hpTxt.textContent = Math.ceil(p.hp) + " / " + p.c.hp;
+  hud.hpfill.style.width = (p.hp / p.c.hp * 100) + "%";
+  hud.hpfill.style.background = p.hp / p.c.hp < 0.3 ? "var(--danger)" : "var(--accent)";
+  hud.spd.textContent = (p.v * 0.42).toFixed(1) + " kn";
+  if (p.field) {
+    const f = p.field;
+    el("fieldTxt").textContent = f.state === "up" ? `シールド ${Math.ceil(f.hp)}/${FIELD.hp}` : f.state === "cool" ? `冷却 ${Math.ceil(f.t)}s` : f.state === "ready" ? "爆発可能(5)" : `溜め ${f.t.toFixed(1)}s`;
+    el("fieldfill").style.width = (f.state === "up" ? f.hp / FIELD.hp : f.state === "cool" ? 1 - f.t / FIELD.cool : f.state === "ready" ? 1 : 1 - f.t / FIELD.charge) * 100 + "%";
+    el("fieldfill").style.background = f.state === "up" ? "#7fd0ff" : f.state === "cool" ? "#5d6f78" : "var(--danger)";
+  }
+  if (p.c.boost) {
+    el("fuelTxt").textContent = Math.round(p.fuel ?? 100) + "%";
+    el("fuelfill").style.width = (p.fuel ?? 100) + "%";
+    el("fuelfill").style.background = (p.fuel ?? 100) < 20 ? "var(--danger)" : "var(--shell)";
+    boostBtn.classList.toggle("held", !!p.boostOn);
+
+  }
+  if (groupBtns.aa) groupBtns.aa.el.classList.toggle("ready", p.alive && p.aaNear < aaRange(p.aa));
+  if (p.air.length) {
+    ctrlVal.textContent = ctrlName();
+    const dropMode = ctrl !== -1 && ctrlSquads(p).some(sq => onBombRun(p, sq));
+    const sel = ctrlSquads(p), nAuto = sel.filter(q => q.autoLaunch).length;
+    alVal.textContent = nAuto === sel.length ? "ON" : nAuto ? "一部" : "OFF";
+    document.getElementById("alBtn").setAttribute("aria-pressed", nAuto === sel.length);
+    atkVal.textContent = dropMode ? "投下" : "攻撃";
+    document.getElementById("atkBtn").classList.toggle("drop", !!dropMode);
+    ctrlBtn.setAttribute("aria-pressed", ctrl !== -1);
+    let h = `<div class="head">航空隊 ・ 再出撃${REARM_T}s ・ 再建${REBUILD_T}s</div>`;
+    for (const sq of p.air) {
+      const planes = G.planes.filter(q => q.owner === p.id && q.sq === sq.idx);
+      let st = "艦上待機";
+      if (planes.some(q => q.state === "attack")) st = "攻撃中";
+      else if (planes.some(q => q.state === "form")) st = sq.tgtId && !sq.wp ? `待機 → 自動攻撃 ${Math.max(0, AUTO_ATK_T - sq.loiter).toFixed(0)}s` : sq.wp ? "指定地点へ" : "移動中";
+      else if (planes.length) st = "帰還中";
+      const icons = sq.slots.map(x => x.st === "air" ? "✈" : x.st === "deck" ? "●" : x.st === "rearm" ? "◐" : "✕").join(" ");
+      const wait = sq.slots.filter(x => x.st === "rebuild").map(x => Math.ceil(x.t) + "s").join(" ");
+      if (!sq.autoLaunch && !planes.length) st = sq.sortie ? "発艦準備" : "艦上待機(手動発艦)";
+      h += `<div class="sq${isCtrl(sq.idx) ? " sel" : ""}"><b>第${sq.idx + 1} ${sq.w.name} <small>${sq.autoLaunch ? "自動" : "手動"}</small></b><span>${st}</span><div class="pl">${icons}${wait ? ` <span>再建 ${wait}</span>` : ""}</div></div>`;
+    }
+    if (h !== lastAir) { airPanel.innerHTML = h; lastAir = h; }
+  }
+  const lk = p.input.lock && p.target && p.target.id === p.input.lock;
+  lockVal.textContent = lk ? p.target.c.name : "自動";
+  lockBtn.setAttribute("aria-pressed", !!lk);
+  for (const g in groupBtns) {
+    const gb = groupBtns[g];
+    let anyFire = false;
+    const gateOpen = salvoGate(p)[g];
+    gb.mounts.forEach((m, i) => {
+      const a = gb.arcs[i]; if (!a) return;
+      const prog = 1 - m.cd / m.w.reload;
+      a.setAttribute("stroke-dasharray", `${(clamp(prog, 0, 1) * (gb.seg - 1.6)).toFixed(2)} 100`);
+      const ready = m.cd <= 0 && m.aligned && m.inRange && (!salvoMode || gateOpen || m.w === WEAPONS.AC);
+      if (ready) anyFire = true;
+      a.setAttribute("stroke", m.cd > 0 ? "#5d6f78" : ready ? "#5fd6c3" : "#ffd27a");
+    });
+    gb.el.classList.toggle("ready", p.alive && anyFire);
+    gb.el.classList.toggle("held", fireHeld[g] || (salvoMode && salvoArmed[g]));
+  }
+  let st = "";
+  const mainG = p.groups.includes("gun") ? "gun" : p.groups[0];
+  const main = p.mounts.filter(m => m.w.group === mainG);
+  if (p.alive && !p.mounts.length) st = ctrl !== -1 ? ctrlName() + "を操作中" : "";
+  else if (p.alive) {
+    if (!p.target) st = "目標なし";
+    else if (!p.mounts.some(m => m.inRange)) st = p.radar && !p.radar.lock && Math.hypot(p.target.x - p.x, p.target.y - p.y) < p.radar.range ? "レーダー照射中…" : "射程外 " + Math.round(Math.hypot(p.target.x - p.x, p.target.y - p.y)) + "m";
+    else {
+      const f = main.filter(m => m.cd <= 0 && m.aligned && m.inRange).length;
+      if (salvoMode) {
+        st = salvoGate(p)[mainG] ? "一斉射撃 可能" : `一斉射撃 準備 ${f}/${main.length}` + (salvoArmed[mainG] ? " ・ 予約中" : "");
+      } else st = f ? `発射可能 ${f}/${main.length}` : main.some(m => m.cd <= 0) ? "旋回中…" : "装填中";
+    }
+  }
+  if (st !== lastHud) { hud.status.textContent = st; lastHud = st; }
+}
+
+resize();
+openHangar();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
