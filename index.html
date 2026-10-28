@@ -159,6 +159,18 @@ body.cineOn #fireWrap,body.cineOn #homeBtn,body.cineOn #airPanel,body.cineOn #co
 /* radio messages during missions */
 #comm{box-sizing:border-box;left:50%;top:76px;transform:translateX(-50%);width:min(560px,calc(100% - 32px));background:rgba(4,14,22,.82);border-left:3px solid var(--accent);padding:8px 14px;font-size:14px;line-height:1.6;color:var(--ink);z-index:3;opacity:0;transition:opacity .3s}
 #comm.show{opacity:1}
+#tut{box-sizing:border-box;left:50%;top:70px;transform:translateX(-50%);width:min(600px,calc(100% - 32px));background:rgba(4,14,22,.9);border:1px solid var(--line);border-left:3px solid #ffd27a;padding:10px 14px 12px;z-index:5;color:var(--ink);pointer-events:auto}
+#tut .tutHead{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.12em;color:#ffd27a}
+#tut .tutBtns button{font:inherit;font-size:11px;background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:3px 9px;margin-left:6px;cursor:pointer}
+#tut h4{margin:4px 0 4px;font-size:18px}
+#tut p{margin:0;font-size:14px;line-height:1.6}
+#tut .tutKeys{margin-top:6px;font-size:12px;color:var(--muted)}
+#tut.ok{border-left-color:var(--accent)} #tut.ok h4{color:var(--accent)}
+#resetBtn{color:#ff8f7a;border-color:rgba(255,87,71,.45)}
+.resetCard .score{color:var(--danger)} .resetCard p{line-height:1.7}
+.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+#tutBtn.new{border-color:#ffd27a;color:#ffd27a}
+@media (max-width:760px){#tut{top:auto;bottom:max(210px,32vh)} #tut p{font-size:13px}}
 #comm b{display:block;font-size:11px;letter-spacing:.14em;color:var(--accent);font-weight:600}
 @media (max-width:760px){#comm{top:auto;bottom:max(200px,30vh)}}
 #comm.intercept{border-left-color:var(--danger)} #comm.intercept b{color:var(--danger)}
@@ -307,6 +319,7 @@ body.cineOn #fireWrap,body.cineOn #homeBtn,body.cineOn #airPanel,body.cineOn #co
       <button class="afBtn" id="sfxBtn" aria-pressed="true">効果音 ON</button>
       <label class="volBox" for="sfxVol">音量 <input type="range" id="sfxVol" min="0" max="100" step="5" value="70"><span id="sfxVolTxt">70</span></label>
       <span class="prog" id="progTxt"></span>
+      <button class="afBtn" id="resetBtn">進捗リセット</button>
     </div>
     <section class="mpanel" id="missionPanel">
       <div class="mlist" id="mList"></div>
@@ -347,7 +360,7 @@ body.cineOn #fireWrap,body.cineOn #homeBtn,body.cineOn #airPanel,body.cineOn #co
           <span>敵の強さの目安：0 小型艇 ・ 3 護衛・駆逐 ・ 7 巡洋・空母 ・ 12 戦艦 ・ 20 <i id="sdTierTxt" style="font-style:normal">超ド級</i>。プレイ中は + / - キーで増減</span>
           <button class="btn ghost dbgGo" id="dbgOff">デバッグを閉じる</button>
         </div>
-        <div class="go"><button class="btn ghost" id="resetLoad">初期装備に戻す</button><button class="btn" id="startBtn">出撃</button><button class="btn ghost" id="battleBtn" hidden>超ド級バトル観戦</button></div>
+        <div class="go"><button class="btn ghost" id="tutBtn">チュートリアル</button><button class="btn ghost" id="resetLoad">初期装備に戻す</button><button class="btn" id="startBtn">出撃</button><button class="btn ghost" id="battleBtn" hidden>超ド級バトル観戦</button></div>
       </div>
     </div>
     <section class="wdata" aria-labelledby="wdataTitle">
@@ -357,6 +370,7 @@ body.cineOn #fireWrap,body.cineOn #homeBtn,body.cineOn #airPanel,body.cineOn #co
   </div>
 </div>
 <div class="hud" id="banner" hidden></div>
+<div class="hud" id="tut" hidden aria-live="polite"><div class="tutHead"><span id="tutStep"></span><span class="tutBtns"><button id="tutSkip">スキップ</button><button id="tutEnd">終了</button></span></div><h4 id="tutTitle"></h4><p id="tutText"></p><p class="tutKeys" id="tutKeys"></p></div>
 <div class="hud" id="comm" aria-live="polite"><b id="commWho"></b><span id="commTxt"></span></div>
 <div id="cine" aria-live="polite"><div class="cbar t"></div><div class="cbar b"></div><div class="cap"><b id="cineWho"></b><span id="cineTxt"></span></div><button id="cineSkip" type="button">SKIP ▸▸</button></div>
 <div class="overlay center" id="briefOv" hidden>
@@ -366,6 +380,14 @@ body.cineOn #fireWrap,body.cineOn #homeBtn,body.cineOn #airPanel,body.cineOn #co
     <div class="bText" id="briefText"></div>
     <p class="bGoal" id="briefGoal"></p>
     <div class="btnrow"><button class="btn ghost" id="briefBack">戻る</button><button class="btn ghost" id="briefSkip">スキップ</button><button class="btn" id="briefGo">出撃</button></div>
+  </div>
+</div>
+<div class="overlay center" id="resetOv" hidden>
+  <div class="card resetCard">
+    <p id="resetSub">進捗リセット</p>
+    <div class="score" id="resetHead">確認 1 / 2</div>
+    <p id="resetMsg"></p>
+    <div class="btnrow" id="resetBtns"></div>
   </div>
 </div>
 <div class="overlay center" id="clearOv" hidden>
@@ -391,7 +413,7 @@ body.cineOn #fireWrap,body.cineOn #homeBtn,body.cineOn #airPanel,body.cineOn #co
 /* =========================================================
    DATA — weapons & ship classes
    ========================================================= */
-const GUN_ORDER = ["AC", "G1", "G2", "G3", "G4", "BA", "RB", "BB", "RA", "G8", "SPG"];  // display order; what fits a slot is decided by tier
+const GUN_ORDER = ["AC", "AC2", "G1", "G2", "PX", "G3", "G4", "BA", "RB", "BB", "RA", "G8", "SPG"];  // display order; what fits a slot is decided by tier
 const MSL_ORDER = ["MA", "MB", "MC", "MD", "ME"];  // "X以下" missile slots allow everything up to X in this order; plain missile slots go up to MC
 const TOR_ORDER = ["TA", "TB", "TC", "TD"];
 const AIR_ORDER = ["BOMB", "BOMBB", "TORP"];
@@ -424,7 +446,9 @@ const midShare = (diff, mi) => diff === "hard" ? (mi >= 7 ? 1 : mi >= 4 ? 0.5 : 
 const AIR_TORP = { range: 560, dmg: 70, v: 62, spread: 0, count: 1 };
 const TORP_WARN = 1.0;  // 雷撃機: holds its run this long (with a visible warning line) before releasing
 const WEAPONS = {
-  AC: { tier: 0, name: "機関砲", group: "gun", kind: "shell", range: 360, speed: 400, reload: 0.22, dmg: 1.3, barrels: 1, disp: 0.06, turn: 3.6, tol: 0.09, tr: 4, barrel: 11, bw: 1.6, desc: "射程は短いが近距離で連射。押し続けて撃つ" },
+  AC: { tier: 0, mg: true, name: "機関砲", group: "gun", kind: "shell", range: 280, speed: 400, reload: 0.22, dmg: 2.2, barrels: 1, disp: 0.06, turn: 3.6, tol: 0.09, tr: 4, barrel: 11, bw: 1.6, desc: "射程は短いが近距離で連射。押し続けて撃つ。大きな艦ほど効きにくい(耐久140以上80%・290以上60%・超ド級50%)" },
+  AC2: { tier: 0, mg: true, name: "機関砲B(連装)", group: "gun", kind: "shell", range: 220, speed: 400, reload: 0.14, dmg: 1.12, barrels: 2, disp: 0.06, turn: 3.4, tol: 0.09, tr: 4.6, barrel: 11, bw: 1.6, desc: "2連装の機関砲。射程は機関砲より短いが連射が速く、毎秒ダメージは機関砲の1.6倍。大きな艦ほど効きにくい" },
+  PX: { tier: 2, mg: true, ciws: true, name: "ファランクス", group: "gun", kind: "shell", range: 320, speed: 520, reload: 0.05, dmg: 1.28, barrels: 1, spin: 1.6, fireT: 6, coolT: 2, disp: 0.05, turn: 4.0, tol: 0.12, tr: 5, barrel: 12, bw: 1.8, desc: "高速機関砲。1.6秒の回転(スピンアップ)のあと6秒間撃ち続け、2秒冷却。毎秒ダメージは機関砲Bの約1.6倍で、飛行機や鉄球も撃ち落とす。1隻1門まで(空母Cは2門)。大きな艦ほど効きにくい" },
   G1: { tier: 1, name: "単装砲", group: "gun", kind: "shell", range: 740, speed: 205, reload: 1.4, dmg: 13.5, barrels: 1, disp: 0.024, turn: 2.3, tol: 0.04, tr: 5.5, barrel: 16, bw: 2.6, desc: "弾速やや遅め。連射と砲塔旋回が速い" },
   G2: { tier: 2, name: "2連装砲", group: "gun", kind: "shell", range: 850, speed: 240, reload: 3.0, dmg: 16, barrels: 2, disp: 0.022, turn: 1.2, tol: 0.035, tr: 6.5, barrel: 20, bw: 2.8, desc: "標準的な主砲。旋回は少し遅い" },
   G3: { tier: 3, name: "3連装砲", group: "gun", kind: "shell", range: 900, speed: 240, reload: 4.4, dmg: 16, barrels: 3, disp: 0.022, turn: 0.75, tol: 0.035, tr: 7.8, barrel: 22, bw: 2.8, desc: "3発同時。装填が長く旋回もかなり遅い" },
@@ -436,6 +460,8 @@ const WEAPONS = {
   SPG: { tier: 5, name: "自走砲", group: "gun", kind: "shell", range: 1400, speed: 270, reload: 7, dmg: 180, blast: 40, blastR: 42, barrels: 1, disp: 0.02, turn: 0.35, tol: 0.03, tr: 10.5, barrel: 30, bw: 6.5, arc: true, desc: "高い弧を描いて飛ぶ遅い砲弾。直撃180+周囲に爆風40。旋回はかなり遅い(20°/秒)。巨砲Bの枠に積める" },
   BB: { tier: 5, name: "巨砲B", group: "gun", kind: "shell", range: 1200, speed: 360, reload: 6.5, dmg: 78, barrels: 2, disp: 0.018, turn: 0.32, tol: 0.03, tr: 11, barrel: 38, bw: 5, desc: "弾速が速く破壊的な威力。旋回が非常に遅い" },
   MA: { name: "ミサイルA", group: "msl", kind: "ma", range: 820, reload: 5.5, dmg: 8, count: 4, v0: 45, vmax: 330, acc: 280, turn: 1.6, tol: 0.08, fuse: 16, blast: 26, desc: "ポッドから4発。初速は遅く途中から加速、近づくと近接信管で爆発" },
+  MA2: { name: "ミサイルA(2連)", group: "msl", kind: "ma", range: 820, reload: 5.5, dmg: 8, count: 2, v0: 45, vmax: 330, acc: 280, turn: 1.6, tol: 0.08, fuse: 16, blast: 26, desc: "ボートA用の小型ポッド。ミサイルAを2発だけ撃つ" },
+  MBs: { rpg: true, name: "ミサイルB(小型)", group: "msl", kind: "mb", range: 850, reload: 8, dmg: 45, count: 1, delay: 1.0, vmax: 340, desc: "ボートA用の小型ミサイルB。1発だけで、威力・射程はミサイルBより低く装填も少し長い" },
   MB: { name: "ミサイルB", group: "msl", kind: "mb", range: 1100, reload: 6.5, dmg: 70, count: 1, delay: 1.0, vmax: 360, desc: "垂直発射。向きを固定して(敵にも見える)一拍おいて高速直進。爆発なし" },
   MD: { name: "ミサイルD", group: "msl", kind: "md", range: 1000, reload: 10, dmg: 9, count: 10, gap: 0.12, rise: 0.35, v0: 30, vmax: 330, acc: 280, home: 0.85, desc: "垂直発射で10発を次々に撃ち出す。ミサイルA並みに加速。黄色いレーダー照射が当たっている間だけ少し追尾" },
   ME: { name: "ミサイルE", group: "msl", kind: "me", range: 900, reload: 9, dmg: 45, count: 1, v0: 40, vmax: 200, acc: 160, blastR: 90, turn: 1.6, tol: 0.06, desc: "ミサイルAの単発版。撃った瞬間の敵の位置へまっすぐ飛び、到着で大爆発(半径約55m)" },
@@ -462,7 +488,8 @@ const GROUP_INFO = { cc: { label: "CHG", sub: "チャージ砲", key: "5" }, aa:
 
 function slotOptions(sl) {
   const guns = sl.max ? GUN_ORDER.filter(k => WEAPONS[k].tier <= WEAPONS[sl.max].tier && (!sl.min || GUN_ORDER.indexOf(k) >= GUN_ORDER.indexOf(sl.min))) : [];
-  if (sl.k === "gun") return guns;
+  if (sl.only) return sl.only.slice();
+  if (sl.k === "gun") return sl.also ? guns.concat(sl.also) : guns;
   if (sl.k === "msl") return MSL_ORDER.slice(0, MSL_ORDER.indexOf(sl.max || "MC") + 1);
   if (sl.k === "tor") return TOR_ORDER.slice();
   if (sl.k === "gunmsl") return guns.concat(MSL_ORDER.slice(0, 3));
@@ -474,17 +501,18 @@ function slotLabel(sl) {
   if (sl.k === "fixed") return "固定武装";
   if (sl.k === "air") return `航空隊(${SQUAD_SIZE}機)`;
   if (sl.k === "gun") return sl.min ? WEAPONS[sl.min].name + "以上" : WEAPONS[sl.max].name + "以下";
-  if (sl.k === "msl") return sl.max ? WEAPONS[sl.max].name + "以下" : "ミサイル";
+  if (sl.k === "msl") return sl.only ? "小型ミサイル" : sl.max ? WEAPONS[sl.max].name + "以下" : "ミサイル";
   if (sl.k === "tor") return "魚雷管";
   return WEAPONS[sl.max].name + "以下 / ミサイル";
 }
 
 // x: position along hull (fraction of length, + = bow), y: across (fraction of width, + = starboard)
 const SHIPS = {
-  boatA:   { name: "ボートA", role: "砲1門+ミサイル。軽快で扱いやすい", tier: 0, len: 36, wid: 9, hp: 48, spd: 112, acc: 48, turn: 1.7, rud: 3.2, slots: [{ k: "gun", max: "G2", x: 0.24 }, { k: "msl", x: -0.26 }] },
-  boatB:   { name: "ボートB", role: "魚雷管1門と機関砲の突撃艇", tier: 0, len: 32, wid: 9, hp: 42, spd: 118, acc: 52, turn: 1.8, rud: 3.4, slots: [{ k: "tor", x: -0.05 }, { k: "gun", max: "AC", x: 0.32 }] },
+  boatA:   { name: "ボートA", role: "単装砲級1門+小型ミサイル(ミサイルA 2連 か ミサイルB 小型)。軽快で扱いやすい", tier: 0, len: 40, wid: 10, hp: 48, spd: 112, acc: 48, turn: 1.7, rud: 3.2, slots: [{ k: "gun", max: "G1", x: 0.24 }, { k: "msl", only: ["MA2", "MBs"], x: -0.26 }] },
+  boatB:   { name: "ボートB", role: "魚雷管1門と機関砲の突撃艇", tier: 0, len: 37, wid: 10, hp: 42, spd: 118, acc: 52, turn: 1.8, rud: 3.4, slots: [{ k: "tor", x: -0.05 }, { k: "gun", max: "AC", x: 0.32 }] },
   ptb:     { name: "魚雷艇", role: "単装砲1門と魚雷管2門", tier: 0, len: 44, wid: 10, hp: 60, spd: 108, acc: 42, turn: 1.45, rud: 3.0, slots: [{ k: "gun", max: "G1", x: 0.3 }, { k: "tor", x: -0.05, y: -0.3 }, { k: "tor", x: -0.05, y: 0.3 }] },
-  frigate: { aa: { mg: 2 }, name: "フリゲート", role: "単装砲2門。後部はミサイルにもできる", tier: 1, len: 58, wid: 12, hp: 88, spd: 96, acc: 32, turn: 1.05, rud: 2.4, slots: [{ k: "gun", max: "G1", x: 0.28 }, { k: "gunmsl", max: "G1", x: -0.3 }] },
+  fishB:   { boost: true, boostCfg: { speed: 1.17, accel: 2.2, burn: 64, regen: 9 }, name: "改造漁船", role: "機関砲3門の機銃艇(前の1門は機関砲B か ミサイルB(小型) にできる)。近づいて撃ちまくる。少しだけブーストできる", tier: 0, len: 42, wid: 11, hp: 55, spd: 112, acc: 46, turn: 1.6, rud: 3.1, slots: [{ k: "gunmsl", max: "AC2", only: ["AC2", "AC", "MBs"], def: "AC2", x: 0.3 }, { k: "gun", max: "AC", only: ["AC"], def: "AC", x: 0.0 }, { k: "gun", max: "AC", only: ["AC"], def: "AC", x: -0.32 }] },
+  frigate: { aa: { mg: 2 }, name: "フリゲート", role: "単装砲1門。後部は2連装砲またはミサイル", tier: 1, len: 58, wid: 12, hp: 88, spd: 96, acc: 32, turn: 1.05, rud: 2.4, slots: [{ k: "gun", max: "G1", x: 0.28 }, { k: "gunmsl", max: "G2", x: -0.3 }] },
   raiA:    { aa: { mg: 2 }, name: "雷撃艇", role: "駆逐艦サイズの魚雷艇。魚雷管3門・単装砲1門", tier: 1, len: 66, wid: 12, hp: 110, spd: 92, acc: 28, turn: 0.95, rud: 2.2,
              slots: [{ k: "gun", max: "G1", x: 0.34 }, { k: "tor", x: 0.06, y: -0.3 }, { k: "tor", x: 0.06, y: 0.3 }, { k: "tor", x: -0.3 }] },
   raiB:    { aa: { mg: 4, gun: 2 }, name: "重雷装艦", role: "戦艦サイズの魚雷艦。魚雷管3門・扇状魚雷発射管(8本)・2連装砲1門", tier: 3, len: 108, wid: 22, hp: 250, spd: 90, acc: 22, turn: 0.73, rud: 1.7,
@@ -507,7 +535,7 @@ const SHIPS = {
       { k: "gun", max: "SPG", x: 0.3, y: -0.33 }, { k: "msl", max: "MC", x: 0.06, y: -0.33 }, { k: "msl", max: "ME", x: -0.14, y: -0.33 }, { k: "gun", max: "SPG", x: -0.38, y: -0.33 },
       { k: "gun", max: "SPG", x: 0.3, y: 0.33 }, { k: "msl", max: "MC", x: 0.06, y: 0.33 }, { k: "msl", max: "ME", x: -0.14, y: 0.33 }, { k: "gun", max: "SPG", x: -0.38, y: 0.33 }] },
   bbM:     { aa: { mg: 6, gun: 2, msl: 3 }, name: "ミサイル戦艦", role: "ミサイル6門+単装砲2門。イージス艦と同じ長距離レーダー", tier: 3, len: 118, wid: 25, hp: 300, spd: 58, acc: 13, turn: 0.45, rud: 1.2, radar: 1.5, slots: [{ k: "gun", max: "G1", x: 0.41 }, { k: "msl", max: "ME", x: 0.28 }, { k: "msl", max: "ME", x: 0.16 }, { k: "msl", max: "ME", x: 0.04 }, { k: "msl", max: "MC", x: -0.09 }, { k: "msl", max: "MC", x: -0.21 }, { k: "msl", max: "MC", x: -0.33 }, { k: "gun", max: "G1", x: -0.43 }] },
-  aegis:   { aa: { mg: 2, gun: 1, msl: 2 }, name: "イージス艦A", role: "ミサイル3門+単装砲。レーダー範囲が広い", tier: 2, len: 74, wid: 15, hp: 125, spd: 86, acc: 26, turn: 0.85, rud: 2.0, radar: 1.5, slots: [{ k: "gun", max: "G1", x: 0.36 }, { k: "msl", x: 0.18 }, { k: "msl", x: -0.2 }, { k: "msl", x: -0.36 }] },
+  aegis:   { aa: { mg: 2, gun: 1, msl: 2 }, name: "イージス艦A", role: "ミサイル3門+単装砲(ファランクスも可)。レーダー範囲が広い", tier: 2, len: 74, wid: 15, hp: 125, spd: 86, acc: 26, turn: 0.85, rud: 2.0, radar: 1.5, slots: [{ k: "gun", max: "G1", also: ["PX"], x: 0.36 }, { k: "msl", x: 0.18 }, { k: "msl", x: -0.2 }, { k: "msl", x: -0.36 }] },
   cruiser: { aa: { mg: 4, gun: 2 }, name: "巡洋艦", role: "巨砲A級・2連装級・単装級・魚雷", tier: 2, len: 86, wid: 16, hp: 175, spd: 78, acc: 20, turn: 0.72, rud: 1.7, slots: [{ k: "gun", max: "BA", x: 0.3 }, { k: "gun", max: "G2", x: -0.22 }, { k: "gun", max: "G1", x: -0.38 }, { k: "tor", x: 0.04 }] },
   bbA:     { aa: { mg: 6, gun: 3 }, name: "戦艦A", role: "巨砲A級3門+巨砲B級1門", tier: 3, len: 112, wid: 24, hp: 300, spd: 58, acc: 13, turn: 0.46, rud: 1.2, slots: [{ k: "gun", max: "BA", x: 0.34 }, { k: "gun", max: "BA", x: 0.17 }, { k: "gun", max: "BB", x: -0.2 }, { k: "gun", max: "BA", x: -0.37 }] },
   bbB:     { aa: { mg: 6, gun: 2, msl: 1 }, name: "戦艦B", role: "巨砲A級2門・2連装級・魚雷2・ミサイル", tier: 3, len: 114, wid: 25, hp: 290, spd: 60, acc: 14, turn: 0.47, rud: 1.25, slots: [{ k: "gun", max: "BA", x: 0.34 }, { k: "gun", max: "BA", x: -0.36 }, { k: "gun", max: "G2", x: 0.16 }, { k: "tor", x: 0.0, y: -0.32 }, { k: "tor", x: 0.0, y: 0.32 }, { k: "msl", x: -0.18 }] },
@@ -534,10 +562,10 @@ const SHIPS = {
              slots: [{ k: "fixed", w: "PEGH", x: 0.3 }, { k: "fixed", w: "PEGH", x: -0.3 }, { k: "fixed", w: "PEG", x: 0.1, y: -0.32 }, { k: "fixed", w: "PEG", x: 0.1, y: 0.32 }, { k: "fixed", w: "PEG", x: -0.12, y: -0.32 }, { k: "fixed", w: "PEG", x: -0.12, y: 0.32 }] },
   cvA:     { aa: { mg: 4, gun: 2 }, carrier: true, name: "空母A", role: "航空隊2個+2連装級の砲2門", tier: 2, len: 124, wid: 26, hp: 240, spd: 62, acc: 13, turn: 0.45, rud: 1.2, slots: [{ k: "air", x: 0.22 }, { k: "air", x: -0.22 }, { k: "gun", max: "G2", x: 0.3, y: -0.42 }, { k: "gun", max: "G2", x: -0.3, y: -0.42 }] },
   cvB:     { aa: { mg: 4, msl: 2 }, carrier: true, name: "空母B", role: "航空隊2個+ミサイル2門+機関砲2門。対空ミサイル装備", tier: 3, len: 124, wid: 26, hp: 240, spd: 62, acc: 13, turn: 0.45, rud: 1.2, slots: [{ k: "air", x: 0.22 }, { k: "air", x: -0.22 }, { k: "msl", x: 0.3, y: -0.42 }, { k: "msl", x: -0.3, y: -0.42 }, { k: "gun", max: "AC", x: 0.36, y: 0.44 }, { k: "gun", max: "AC", x: -0.36, y: 0.44 }] },
-  cvC:     { aa: { mg: 6, gun: 2 }, carrier: true, name: "空母C", role: "航空隊4個。艦載機だらけで、自衩用の機関砲が2門", tier: 3, len: 130, wid: 27, hp: 220, spd: 60, acc: 12, turn: 0.43, rud: 1.15, slots: [{ k: "air", x: 0.32 }, { k: "air", x: 0.11 }, { k: "air", x: -0.1 }, { k: "air", x: -0.31 }, { k: "gun", max: "AC", x: 0.36, y: -0.44 }, { k: "gun", max: "AC", x: -0.36, y: -0.44 }] },
+  cvC:     { aa: { mg: 6, gun: 2 }, carrier: true, name: "空母C", role: "航空隊4個。自衛用のファランクスを2門まで積める(初期装備)", tier: 3, len: 130, wid: 27, hp: 220, spd: 60, acc: 12, turn: 0.43, rud: 1.15, slots: [{ k: "air", x: 0.32 }, { k: "air", x: 0.11 }, { k: "air", x: -0.1 }, { k: "air", x: -0.31 }, { k: "gun", max: "AC", also: ["PX"], def: "PX", x: 0.36, y: -0.44 }, { k: "gun", max: "AC", also: ["PX"], def: "PX", x: -0.36, y: -0.44 }], pxMax: 2 },
 };
 const TIERS = [
-  { name: "小型艇", ships: ["boatA", "boatB", "ptb"] },
+  { name: "小型艇", ships: ["boatA", "boatB", "ptb", "fishB"] },
   { name: "護衛・駆逐", ships: ["frigate", "ddA", "ddC", "ddB", "raiA", "sub"] },
   { name: "防空・巡洋", ships: ["aegis", "aegisB", "aegisC", "cruiser"] },
   { name: "戦艦", ships: ["bbA", "bbB", "bbC", "bbD", "bbM", "raiB", "bbV"] },
@@ -607,14 +635,14 @@ function raiSwap(cls, tier) {
   if (tier === 1 && Math.random() < RAI_CHANCE) return "raiA";
   return cls;
 }  // M11 is a hidden extra
-const SPAWN_TIERS = [["boatA", "boatB", "ptb"], ["frigate", "ddA", "ddC"], ["ddB", "aegis", "aegisB", "cruiser", "cvA"], ["bbA", "bbB", "bbC", "bbM", "aegisC", "cvB", "cvC"]];
+const SPAWN_TIERS = [["boatA", "boatB", "ptb", "fishB"], ["frigate", "ddA", "ddC"], ["ddB", "aegis", "aegisB", "cruiser", "cvA"], ["bbA", "bbB", "bbC", "bbM", "aegisC", "cvB", "cvC"]];
 
 /* ---------- missions ----------
    Every mission has 3 waves. A wave lists its ships in u: a number = a random ship of that class tier
    (0 小型艇, 1 護衛・駆逐, 2 巡洋級, 3 戦艦級, 4 超ド級), a string = that exact class.
    boss: the wave is a stronger lone ship; swarm: weak ships coming from all sides.
    Ships below the mission's tier t count as 雑魚 and get the weakest loadouts. */
-const CLASS_TIERS = [["boatA", "boatB", "ptb"], ["frigate", "ddA", "ddC"], ["ddB", "aegis", "aegisB", "cruiser", "cvA"], ["bbA", "bbB", "bbC", "bbM", "aegisC", "cvB", "cvC"], ["sdA", "sdB"], ["bbA", "bbB", "bbC", "bbM"]];  // 5 = battleships only
+const CLASS_TIERS = [["boatA", "boatB", "ptb", "fishB"], ["frigate", "ddA", "ddC"], ["ddB", "aegis", "aegisB", "cruiser", "cvA"], ["bbA", "bbB", "bbC", "bbM", "aegisC", "cvB", "cvC"], ["sdA", "sdB"], ["bbA", "bbB", "bbC", "bbM"]];  // 5 = battleships only
 const N = (n, x) => Array(n).fill(x);
 // boss waves also bring a few weak escorts (雑魚) of the tier below the mission's
 const bossEscort = (M, mi) => ({ n: 1, tier: Math.max(0, M.t - 1) });  // the boss and one escort make a pair
@@ -626,7 +654,7 @@ const MISSIONS = [
   { name: "群狼(待ち伏せ)", t: 0, waves: [{ u: N(2, 0) }, { u: N(4, 0), swarm: true }, { u: N(6, 0), swarm: true }] },
   { name: "巡洋艦来襲", t: 2, waves: [{ u: ["cruiser", 1] }, { u: ["aegis", 2] }, { u: [3], boss: true }] },
   { name: "機動部隊", t: 2, waves: [{ u: ["cvA", 1] }, { u: [2, "ddA"], forts: ["airfield"] }, { u: ["cvB", "frigate", "frigate"], boss: true, noEscort: true }] },
-  { name: "大艦隊(待ち伏せ)", t: 1, waves: [{ u: N(2, 1) }, { u: N(4, 1), swarm: true }, { u: N(4, 1).concat(["cruiser"]), swarm: true, pack: ["ptb", "ptb", "boat", "boat"] }], allies: { wave: 1, n: 1, delay: 14, left: 2 } },
+  { name: "大艦隊(待ち伏せ)", t: 1, waves: [{ u: N(2, 1) }, { u: N(4, 1), swarm: true }, { u: N(4, 1).concat(["cruiser"]), swarm: true, pack: ["ptb", "ptb", "boat", "boat", "fishB"] }], allies: { wave: 1, n: 1, delay: 14, left: 2 } },
   { name: "戦艦出撃", t: 3, waves: [{ u: ["bbA", "aegisC"], forts: ["batBA", "batBA"], fix: { 0: [null, null, "G8", null] } }, { u: ["bbB", "cvB"], forts: ["batBB", "pod"] }, { u: [5, "raiB", 1, "raiA"] }], allies: { wave: 1, delay: 3, left: 0, anyTime: true, list: [["ddA", "駆逐艦A"], ["ddA", "駆逐艦A"]] } },  // final wave: battleship + 重雷装艦, destroyer-class + 雷撃艇; two friendly destroyers join at W2
   { name: "双胴の怪物", t: 3, escort: ["bbA", "ddB"], waves: [{ u: ["cvC", "bbC"] }, { u: ["bbM", 2, 1, 1], soft: ["bbM"] }, { u: ["sdA"], boss: true, reveal: true }] },  // W2: more ships (the extras are 雑魚), only one missile ship
   { name: "最終決戦", t: 3, area: 2000, waves: [{ u: ["bbA", 2, 1], forts: ["batMD", "pod"] }, { u: [3, 2, 1], forts: ["batRB", "batME"] }, { u: [5, 2, 2], boss: true, gimmick: true, label: "敵制御センター" }], allies: { wave: 1, delay: 14, left: 2, list: [["bbA", "戦艦A"], ["bbA", "戦艦A"], ["ddB", "駆逐艦B"], ["ddB", "駆逐艦B"]] } },  // area: the sea is fenced in until the last wave
@@ -700,12 +728,12 @@ const STORY = [
 ];
 // what clearing mission i (0-based) unlocks
 const BASE_SHIPS = ["boatA", "boatB", "ptb"];
-const BASE_WEAPONS = ["AC", "G1", "G2", "MA", "TA", "CC", "EF"];
+const BASE_WEAPONS = ["AC", "G1", "G2", "MA", "MA2", "TA", "CC", "EF"];
 const UNLOCKS = [
-  { ships: ["frigate", "ddA", "ddC"], weapons: ["G3", "TB"] },
-  { ships: ["ddB", "aegis"], weapons: ["MB", "MC", "TC"] },
+  { ships: ["frigate", "ddA", "ddC", "fishB"], weapons: ["G3", "TB", "AC2"] },
+  { ships: ["ddB", "aegis"], weapons: ["MB", "MBs", "MC", "TC"] },
   { ships: ["cruiser", "cvA"], weapons: ["BA", "G4", "BOMB", "TD"] },
-  { ships: ["aegisB"], weapons: ["RB", "TORP"] },
+  { ships: ["aegisB"], weapons: ["RB", "TORP", "PX"] },
   { ships: ["bbA", "bbB", "raiA", "raiB"], weapons: ["BB", "BOMBB", "TF"] },
   { ships: ["bbC", "cvB"], weapons: ["MD", "ME"] },
   { ships: ["aegisC", "cvC"], weapons: ["RA", "G8", "SPG"] },
@@ -718,9 +746,17 @@ const UNLOCKS = [
 const unlockMission = { ship: {}, weapon: {} };  // which mission (1-based) unlocks each item
 UNLOCKS.forEach((u, i) => { for (const k of u.ships) unlockMission.ship[k] = i + 1; for (const k of u.weapons) unlockMission.weapon[k] = i + 1; });
 
+// ファランクス: at most one per ship (空母C: two). Extra ones become the slot's next-best option
+function limitPX(cls, load, keep) {
+  const max = SHIPS[cls].pxMax || 1, ix = load.map((w, i) => w === "PX" ? i : -1).filter(i => i >= 0);
+  if (ix.length <= max) return load;
+  const order = keep != null ? [keep].concat(ix.filter(i => i !== keep)) : ix;
+  for (const i of order.slice(max)) { const o = slotOptions(SHIPS[cls].slots[i]).filter(k => k !== "PX"); load[i] = SHIPS[cls].slots[i].max && o.includes(SHIPS[cls].slots[i].max) ? SHIPS[cls].slots[i].max : o[o.length - 1]; }
+  return load;
+}
 function defaultLoadout(cls) {
   let air = 0;
-  return SHIPS[cls].slots.map(sl => { if (sl.k === "air") return AIR_ORDER[air++ % AIR_ORDER.length]; if (sl.k === "fixed") return sl.w; const o = slotOptions(sl); return sl.def ? sl.def : sl.k === "gunmsl" || sl.k === "gun" ? sl.max : sl.k === "msl" ? (sl.max === "ME" ? "ME" : SHIPS[cls].radar ? "MC" : "MA") : sl.k === "tor" ? "TA" : o[o.length - 1]; });
+  return SHIPS[cls].slots.map(sl => { if (sl.k === "air") return AIR_ORDER[air++ % AIR_ORDER.length]; if (sl.k === "fixed") return sl.w; const o = slotOptions(sl); return sl.def ? sl.def : sl.only ? sl.only[0] : sl.k === "gunmsl" || sl.k === "gun" ? sl.max : sl.k === "msl" ? (sl.max === "ME" ? "ME" : SHIPS[cls].radar ? "MC" : "MA") : sl.k === "tor" ? "TA" : o[o.length - 1]; });
 }
 
 /* =========================================================
@@ -779,7 +815,7 @@ function buildShip(cls, loadout, team, x, y, h) {
   if (s.air.length) s.engage = Math.max(s.engage, 1100);  // carriers stand off
   // anti-air fit; machine-gun mounts (機関砲) double as AA guns, which gives small boats some defence
   const aa = Object.assign({ mg: 0, gun: 0, msl: 0 }, c.aa || {});
-  aa.mg += s.mounts.filter(m => m.w === WEAPONS.AC).length;
+  aa.mg += s.mounts.filter(m => m.w.mg).length;
   s.aa = aa.mg + aa.gun + aa.msl ? aa : null;
   s.aaCd = { mg: 0, gun: 0, msl: 0 }; s.aaExp = 0; s.aaNear = Infinity;
   return s;
@@ -815,7 +851,7 @@ function pickTarget(s) {
 }
 
 function updateShip(s, dt) {
-  const c = s.c;
+  const c = s.c, BO = c.boostCfg ? Object.assign({}, BOOST, c.boostCfg) : BOOST;  // some small craft have a weaker boost
   if (c.sub && !s.noDive && !s.ai && !s.transform) {  // player-driven: Z dives for a while, then a cooldown before the next dive
     const pd = c.pDive || [10, 15];
     if (s.diveCd === undefined) { s.diveCd = 0; s.subm = false; }
@@ -850,14 +886,14 @@ function updateShip(s, dt) {
   if (c.boost) {
     if (s.fuel === undefined) { s.fuel = 100; s.dodgeT = 0; s.boostIdle = 9; }
     if (s.input.boost && s.fuel > 0) {
-      s.boostOn = true; s.boostIdle = 0; s.fuel = Math.max(0, s.fuel - BOOST.burn * dt);
-      targetSpeed = (s.dest ? Math.max(targetSpeed, c.spd * 0.6) : c.spd) * BOOST.speed;
-    } else if ((s.boostIdle += dt) > 1) s.fuel = Math.min(100, s.fuel + BOOST.regen * dt);
+      s.boostOn = true; s.boostIdle = 0; s.fuel = Math.max(0, s.fuel - BO.burn * dt);
+      targetSpeed = (s.dest ? Math.max(targetSpeed, c.spd * 0.6) : c.spd) * BO.speed;
+    } else if ((s.boostIdle += dt) > 1) s.fuel = Math.min(100, s.fuel + BO.regen * dt);
     if (s.input.dodge) {
       s.input.dodge = false;
-      if (s.fuel >= BOOST.dodgeCost && s.dodgeT <= 0) {
+      if (s.fuel >= BO.dodgeCost && s.dodgeT <= 0) {
         // emergency dash straight ahead in the direction the ship is heading
-        s.fuel -= BOOST.dodgeCost; s.dodgeT = BOOST.dodgeT; s.dodgeA = s.h;
+        s.fuel -= BO.dodgeCost; s.dodgeT = BO.dodgeT; s.dodgeA = s.h;
         emit("dodge", { x: s.x, y: s.y, a: s.dodgeA });
       }
     }
@@ -872,12 +908,12 @@ function updateShip(s, dt) {
       emit("repair", { id: s.id, x: s.x, y: s.y, pct: Math.round((DIFF[G.diff] || DIFF.hard).repair * 100) });
     }
   }
-  s.v = approach(s.v, targetSpeed, (s.v < targetSpeed ? c.acc * (s.boostOn ? BOOST.accel : 1) : c.acc * 1.4) * dt);
+  s.v = approach(s.v, targetSpeed, (s.v < targetSpeed ? c.acc * (s.boostOn ? BO.accel : 1) : c.acc * 1.4) * dt);
   const eff = 0.2 + 0.8 * Math.min(1, s.v / (c.spd * 0.5));
   if (s.dodgeT > 0) {
     s.dodgeT -= dt;
-    s.x = clamp(s.x + Math.cos(s.dodgeA) * BOOST.dodgeV * dt, -G.bound, G.bound);
-    s.y = clamp(s.y + Math.sin(s.dodgeA) * BOOST.dodgeV * dt, -G.bound, G.bound);
+    s.x = clamp(s.x + Math.cos(s.dodgeA) * BO.dodgeV * dt, -G.bound, G.bound);
+    s.y = clamp(s.y + Math.sin(s.dodgeA) * BO.dodgeV * dt, -G.bound, G.bound);
   }
   if (c.hop) {  // 来訪者: crouch for a moment (the tell), then leap a few hundred metres
     s.hopCd = Math.max(0, (s.hopCd ?? rnd(1, c.hop.cd)) - dt);
@@ -978,13 +1014,14 @@ function updateShip(s, dt) {
       tg = tg0;
     }
     m.pos = p;
+    if (w.ciws && !m.off && !s.subm) stepCiws(s, m, p, dt, fire);
   }
   // fire pass. Salvo mode: a group fires only when every mount in it (machine guns excepted) is loaded, on target and in range.
   const gate = salvoGate(s);
   // salvo pattern: -1 = tight (集束), 0 = normal, 1 = spread out across the target (散布)
   const sp = s.input.salvo ? clamp(s.input.spread || 0, -1, 1) : 0;
   const pat = {};
-  for (const g of s.groups) pat[g] = { n: s.mounts.reduce((a, m) => a + (m.w.group === g && m.w.kind === "shell" && m.w !== WEAPONS.AC ? m.w.barrels : 0), 0), i: 0 };
+  for (const g of s.groups) pat[g] = { n: s.mounts.reduce((a, m) => a + (m.w.group === g && m.w.kind === "shell" && !m.w.mg ? m.w.barrels : 0), 0), i: 0 };
   // individual mode (players): one mount per trigger. Pick the ready mount that fired longest ago;
   // holding the trigger ripples through the mounts at RIPPLE_GAP intervals.
   const single = !s.input.salvo && !s.ai;
@@ -994,17 +1031,17 @@ function updateShip(s, dt) {
     for (const g of s.groups) {
       if (!fire[g] || G.time - (s.ripT[g] ?? -9) < RIPPLE_GAP) continue;
       let best = null;
-      for (const m of s.mounts) if (m.w.group === g && m.w !== WEAPONS.AC && m.cd <= 0 && m.aligned && m.inRange && (!best || (m.lastShot ?? -9) < (best.lastShot ?? -9))) best = m;
+      for (const m of s.mounts) if (m.w.group === g && !m.w.mg && m.cd <= 0 && m.aligned && m.inRange && (!best || (m.lastShot ?? -9) < (best.lastShot ?? -9))) best = m;
       pickM[g] = best;
     }
   }
   for (const m of s.mounts) {
     const w = m.w;
-    if (w.kind === "field" || !fire[w.group] || m.cd > 0 || !m.aligned || !m.inRange) continue;
+    if (w.kind === "field" || w.ciws || !fire[w.group] || m.cd > 0 || !m.aligned || !m.inRange) continue;
     if (m.off || m.hold) continue;                       // dormant (not grown yet) or locked on something else
     if (s.subm && (w.charge || w.energy || !s.ai)) continue;  // submerged: charge / energy guns can't fire (they still reload); a player's boat can't fire at all
-    if (s.input.salvo && w !== WEAPONS.AC && !gate[w.group]) continue;
-    if (single && w !== WEAPONS.AC) { if (pickM[w.group] !== m) continue; s.ripT[w.group] = G.time; m.lastShot = G.time; }
+    if (s.input.salvo && !w.mg && !gate[w.group]) continue;
+    if (single && !w.mg) { if (pickM[w.group] !== m) continue; s.ripT[w.group] = G.time; m.lastShot = G.time; }
     if (w.laser) {
       m.lz = { st: "ch", t: w.chargeL, d: 0, hit: {} }; m.cd = 99; emit("charge", { x: m.pos.x, y: m.pos.y, T: w.chargeL, size: w.tr, energy: true });
       const pl = byId(G.playerId);
@@ -1015,7 +1052,7 @@ function updateShip(s, dt) {
       emit("charge", { x: m.pos.x, y: m.pos.y, T: ch, size: w.tr, energy: !!w.energy }); m.chT = ch; m.chMax = ch; m.lockAim = { x: m.aim.x, y: m.aim.y }; m.cd = ch + w.reload * reloadMul * rnd(0.95, 1.05);
     }
     else {
-      launch(s, m, m.pos, s.input.salvo && w !== WEAPONS.AC ? { sp, g: pat[w.group] } : null);
+      launch(s, m, m.pos, s.input.salvo && !w.mg ? { sp, g: pat[w.group] } : null);
       if (w.burst) { if (!(m.burstLeft > 0)) m.burstLeft = w.burst; m.burstLeft--; m.cd = m.burstLeft > 0 ? w.burstGap : w.reload * reloadMul * rnd(0.95, 1.05); }
       else m.cd = w.reload * reloadMul * rnd(0.95, 1.05);
     }
@@ -1064,9 +1101,31 @@ function stepLaser(s, m, p, tg, dt, reloadMul) {
   }
   if (L.d >= w.range) { L.st = "hold"; L.h = w.hold; }
 }
+// ファランクス: spin up (1 s, visible warning) → 6 s of fire at ships or aircraft → 2 s to cool → ready again
+function stepCiws(s, m, p, dt, fire) {
+  const w = m.w, P = m.px || (m.px = { st: "idle", t: 0, shotT: 0 });
+  let air = null, ad = w.range;
+  for (const pl of G.planes) if (pl.alive && pl.team !== s.team) { const d = Math.hypot(pl.x - p.x, pl.y - p.y); if (d < ad) { ad = d; air = pl; } }
+  const shipWant = !!fire[w.group] && m.aligned && m.inRange, airWant = !!air && (!!s.ai || s.input.autoAA !== false || !!fire.aa || !!fire[w.group]);
+  if (P.st === "idle") { if (shipWant || airWant) { P.st = "spin"; P.t = w.spin; emit("ciwsSpin", { id: s.id, x: p.x, y: p.y }); } return; }
+  if (P.st === "spin") { if ((P.t -= dt) <= 0) { P.st = "fire"; P.t = w.fireT; P.shotT = 0; } return; }
+  if (P.st === "cool") { if ((P.t -= dt) <= 0) P.st = "idle"; return; }
+  // firing
+  if ((P.t -= dt) <= 0) { P.st = "cool"; P.t = w.coolT; return; }
+  const onAir = air && !shipWant;
+  if (onAir) m.a += clamp(angDiff(Math.atan2(air.y - p.y, air.x - p.x), m.a), -w.turn * dt, w.turn * dt);
+  P.shotT -= dt;
+  while (P.shotT <= 0) {
+    P.shotT += w.reload;
+    if (onAir) {
+      if (Math.random() < 0.55) damagePlane(air, w.dmg * 1.4);
+      if (Math.random() < 0.3) emit("tracer", { x1: p.x, y1: p.y, x2: air.x + gauss() * 8, y2: air.y + gauss() * 8 });
+    } else if (m.aligned && m.inRange && m.aim) launch(s, m, p, null);
+  }
+}
 function salvoGate(s) {
   const gate = {};
-  for (const g of s.groups) gate[g] = s.mounts.every(m => m.w.group !== g || m.w === WEAPONS.AC || (m.cd <= 0 && m.aligned && m.inRange));
+  for (const g of s.groups) gate[g] = s.mounts.every(m => m.w.group !== g || m.w.mg || (m.cd <= 0 && m.aligned && m.inRange));
   return gate;
 }
 
@@ -1097,10 +1156,10 @@ function launch(s, m, p, pt) {
         tx = sx + (tx - sx) / d * w.range; ty = sy + (ty - sy) / d * w.range;
       }
       const T = Math.hypot(tx - sx, ty - sy) / w.speed + (w.charge ? 0 : rnd(0, 0.06));
-      G.shells.push({ owner: s.id, team: s.team, sx, sy, tx, ty, T, t: 0, dmg: w.dmg * rnd(0.85, 1.15), small: w === WEAPONS.AC, arc: !!w.arc, rail: !!w.charge, blast: w.blast, blastR: w.blastR, blast2: w.blast2, blastR2: w.blastR2, big: w.dmg >= 60 || !!w.energy, energy: !!w.energy, peg: w.peg || null });
+      G.shells.push({ owner: s.id, team: s.team, sx, sy, tx, ty, T, t: 0, dmg: w.dmg * rnd(0.85, 1.15), small: !!w.mg, arc: !!w.arc, rail: !!w.charge, blast: w.blast, blastR: w.blastR, blast2: w.blast2, blastR2: w.blastR2, big: w.dmg >= 60 || !!w.energy, energy: !!w.energy, peg: w.peg || null });
     }
     m.recoil = 1;
-    emit("muzzle", { x: p.x + Math.cos(m.a) * w.barrel, y: p.y + Math.sin(m.a) * w.barrel, a: m.a, size: w.tr, rail: !!w.charge, energy: !!w.energy, ac: w === WEAPONS.AC });
+    emit("muzzle", { x: p.x + Math.cos(m.a) * w.barrel, y: p.y + Math.sin(m.a) * w.barrel, a: m.a, size: w.tr, rail: !!w.charge, energy: !!w.energy, ac: !!w.mg });
   } else if (w.kind === "ma") {
     const ang = Math.atan2(a.y - p.y, a.x - p.x), nx = -Math.sin(ang), ny = Math.cos(ang);
     for (let i = 0; i < w.count; i++) {
@@ -1146,7 +1205,8 @@ function damage(s, dmg, ownerId, x, y, big) {
   if ((G.cineLock || G.god) && s.id === G.playerId) return;  // god: debug invincibility
   if (s.c.ghost || s.sleep) return;  // (sleepers can't be hurt until they wake)
   if (s.subm && !G.torHit) return;
-  if (s.finShield) dmg *= FINALE.shieldMul;  // おまけ3 flagship: shielded while its generators stand  // submerged: only torpedoes reach it
+  if (s.finShield) dmg *= FINALE.shieldMul;
+  if (G.mode === "tutorial" && (s.id === G.playerId || s.tutGuard)) dmg = Math.min(dmg, Math.max(0, s.hp - 1));  // the tutorial never sinks you (nor the target before the last step)  // おまけ3 flagship: shielded while its generators stand  // submerged: only torpedoes reach it
   const src = ownerId ? byId(ownerId) : null;
   if (src && src.c.fort && src.team !== 0) dmg *= FORT_DMG;
   if (src && src.boss && s.team === 0) dmg *= src.atkMul ?? (DIFF[G.diff] || DIFF.hard).atk;  // boss firepower: M10 by difficulty, M11 by form
@@ -1185,11 +1245,16 @@ function areaBlast(sh, x, y, hitS) {
     else if (sh.blastR2 && hullHit(s, x, y, sh.blastR2)) damage(s, sh.blast2, sh.owner, x, y, false);
   }
 }
+// machine cannons barely scratch big hulls: by the target's original durability
+function mgMul(s) {
+  const base = (SHIPS[s.cls] || s.c).hp;
+  return /^sd[ABC]$/.test(s.cls) ? 0.5 : base >= 290 ? 0.6 : base >= 140 ? 0.8 : 1;
+}
 function landShell(sh) {
   let hitS = null;
   for (const s of G.ships) {
     if (!s.alive || s.team === sh.team || s.subm || s.hopT > 0) continue;  // a hopping ship is in the air
-    if (hullHit(s, sh.tx, sh.ty, sh.r ?? (sh.small ? 2 : 5))) { hitS = s; damage(s, sh.dmg, sh.owner, sh.tx, sh.ty, !!sh.big); break; }
+    if (hullHit(s, sh.tx, sh.ty, sh.r ?? (sh.small ? 2 : 5))) { hitS = s; damage(s, sh.small ? sh.dmg * mgMul(s) : sh.dmg, sh.owner, sh.tx, sh.ty, !!sh.big); break; }
   }
   if (sh.blast) {  // 自走砲: blast damages every other enemy ship close to the impact
     emit("blast", { x: sh.tx, y: sh.ty, r: sh.blastR * 1.6 });
@@ -1788,13 +1853,21 @@ function spawnEnemy(px, py) {
   return makeEnemy(cls, clamp(sc / 18, 0, 1), px + Math.cos(ang) * d, py + Math.sin(ang) * d, px, py, Math.min(0.5, sc * 0.02), Math.min(0.4, sc * 0.025));
 }
 // power 0..1 decides how strong the random loadout is; skillUp / reloadUp make the AI sharper
+const LATE_AC2 = { from: 6, chance: 0.6 };  // from M7 on, small craft often swap their gun for 機関砲B
+function lateAC2(en, mi, M) {  // late campaign: small craft often carry twin machine cannons
+  if (mi < LATE_AC2.from || M.unmanned || M.bonus) return;
+  for (const m of en.mounts) if (m.w.group === "gun" && !m.w.charge && (en.cls === "fishB" || Math.random() < LATE_AC2.chance) && slotOptions(SHIPS[en.cls].slots[en.mounts.indexOf(m)] || {}).includes("AC2")) { m.w = WEAPONS.AC2; m.wid = "AC2"; }  // (改造漁船: always its one twin mount)
+  en.groups = [...new Set(en.mounts.map(m => m.w.group))];
+}
 function makeEnemy(cls, power, x, y, px, py, skillUp, reloadUp, fix) {
   const load = SHIPS[cls].slots.map((sl, i) => {
     if (fix && fix[i]) return fix[i];  // fixed mount (mission data)
-    const o = slotOptions(sl);
+    const o = slotOptions(sl).filter(k => k !== "AC2");  // the twin cannon only turns up on late small craft (see spawnWave)
+    if (sl.def === "PX") return "PX";
     const idx = clamp(Math.floor(o.length * (Math.random() * (0.55 + power * 0.6) + power * 0.25)), 0, o.length - 1);
     return o[idx];
   });
+  limitPX(cls, load);
   x = clamp(x, -G.bound + 100, G.bound - 100); y = clamp(y, -G.bound + 100, G.bound - 100);
   const s = addShip(buildShip(cls, load, 1, x, y, Math.atan2(py - y, px - x) + rnd(-0.6, 0.6)));
   s.ai = { t: 0, side: Math.random() < .5 ? -1 : 1, lead: rnd(0.55, 1.05), dodge: 0, skill: Math.min(0.95, rnd(0.45, 0.8) + skillUp) * (DIFF[G.diff] || DIFF.hard).skill, reloadMul: Math.max(1.0, 1.4 - reloadUp), thrT: rnd(1, 3) };
@@ -1840,6 +1913,7 @@ function spawnWave(mi, wi, p, at, only) {  // at: the defence line the ships com
     }
     const soft = W.soft && W.soft.includes(cls);  // soft: a mid-strength loadout, slower reloads, never an elite
     const en = makeEnemy(cls, weak ? 0 : soft ? 0.45 : Math.min(1, power + (W.boss ? 0.15 : 0)), ex, ey, p.x, p.y, mi * 0.03, mi * 0.03, W.fix && !only ? W.fix[k] : null);
+    if (tier === 0) lateAC2(en, mi, M);
     en.ai.aggro = true; en.ai.t = 0;
     en.ai.holdT = W.swarm ? 0 : pair * (at ? 4 : 7);
     if (W.boss && k === 0) bossId = en.id;
@@ -1857,7 +1931,7 @@ function spawnWave(mi, wi, p, at, only) {  // at: the defence line the ships com
       const cls = x === "boat" ? pick(["boatA", "boatB"]) : x;
       const o = (k - (W.pack.length - 1) / 2) * 45;
       const en = makeEnemy(cls, 0, cx - Math.sin(a) * o, cy + Math.cos(a) * o, p.x, p.y, mi * 0.03, mi * 0.03);
-      en.ai.aggro = true; en.ai.t = 0; en.ai.holdT = 0;
+      en.ai.aggro = true; en.ai.t = 0; en.ai.holdT = 0; lateAC2(en, mi, M);
       if (Math.random() < midShare(G.diff, mi)) { en.ai.skill = en.ai.skill / (DIFF[G.diff] || DIFF.hard).skill * MID_DODGE.skill; en.ai.dodgeMul = MID_DODGE.dodgeCd; en.ai.mid = true; }
     });
   }
@@ -2411,10 +2485,10 @@ const shipNameUI = k => isSecret(k) ? "？？？" : SHIPS[k].name;
 const weaponUnlocked = k => PROG.all || BASE_WEAPONS.includes(k) || (unlockMission.weapon[k] || 99) <= PROG.cleared;
 function sanitizeLoad(cls, load) {  // replace anything still locked with something allowed
   const d = defaultLoadout(cls);
-  return SHIPS[cls].slots.map((sl, i) => {
+  return limitPX(cls, SHIPS[cls].slots.map((sl, i) => {
     const all = slotOptions(sl), o = all.filter(weaponUnlocked);
-    return o.includes(load[i]) ? load[i] : o.includes(d[i]) ? d[i] : o[o.length - 1] || all[0];
-  });
+    return o.includes(load[i]) ? load[i] : o.includes(d[i]) && weaponUnlocked(d[i]) ? d[i] : o.includes(sl.max) ? sl.max : o[o.length - 1] || all[0];
+  }));
 }
 let playMode = "mission", selMission = Math.min(PROG.cleared, MISSIONS.length - 1);
 try { if (localStorage.getItem("salvo.mode2") === "free") playMode = "free"; } catch (e) {}
@@ -2486,7 +2560,7 @@ function renderConfig() {
       const id = `bulk-${selCls}-${gi}`;
       const row = document.createElement("div"); row.className = "slot bulk";
       row.innerHTML = `<label for="${id}">${slotLabel(sl)} ×${ix.length}</label><select id="${id}">${same ? "" : `<option value="" selected>（ばらばら）</option>`}${slotOptions(sl).map(k => `<option value="${k}"${same && k === cur ? " selected" : ""}${weaponUnlocked(k) ? "" : " disabled"}>${optText(k)}${lockTag(k)}</option>`).join("")}</select>`;
-      row.querySelector("select").onchange = e => { if (!e.target.value) return; for (const i of ix) selLoad[i] = e.target.value; saveSel(); renderConfig(); };
+      row.querySelector("select").onchange = e => { if (!e.target.value) return; for (const i of ix) selLoad[i] = e.target.value; limitPX(selCls, selLoad, ix[0]); saveSel(); renderConfig(); };
       slots.appendChild(row);
     });
   }
@@ -2499,7 +2573,7 @@ function renderConfig() {
     const id = `slot-${selCls}-${i}`;
     const opts = slotOptions(sl).map(k => `<option value="${k}"${k === selLoad[i] ? " selected" : ""}${weaponUnlocked(k) ? "" : " disabled"}>${optText(k)}${lockTag(k)}</option>`).join("");
     row.innerHTML = `<label for="${id}">${i + 1}. ${slotLabel(sl)}</label><select id="${id}"${sl.k === "fixed" ? " disabled" : ""}>${opts}</select><div class="desc">${WEAPONS[selLoad[i]].desc}</div>`;
-    row.querySelector("select").onchange = e => { selLoad[i] = e.target.value; saveSel(); renderConfig(); };
+    row.querySelector("select").onchange = e => { selLoad[i] = e.target.value; limitPX(selCls, selLoad, i); saveSel(); renderConfig(); };
     box.appendChild(row);
   });
   slots.appendChild(box);
@@ -2519,7 +2593,7 @@ function weaponStats(w) {
   };
 }
 function renderWeaponTable() {
-  const keys = GUN_ORDER.concat(MSL_ORDER, TOR_ORDER, ["TF"], AIR_ORDER, ["CC", "EF"]);
+  const keys = GUN_ORDER.concat(MSL_ORDER, ["MA2", "MBs"], TOR_ORDER, ["TF"], AIR_ORDER, ["CC", "EF"]);
   const st = Object.fromEntries(keys.map(k => [k, weaponStats(WEAPONS[k])]));
   const max = { dmg: 0, range: 0, speed: 0, turn: 0, reload: 0 };
   for (const k of keys) for (const f in max) if (st[k][f] != null) max[f] = Math.max(max[f], st[k][f]);
@@ -2528,7 +2602,7 @@ function renderWeaponTable() {
     ? `<div class="wbar ${cls}"><span class="na">${txt}</span><div class="tr"></div></div>`
     : `<div class="wbar ${cls}"><span>${txt}</span><div class="tr"><i style="width:${Math.max(3, v / mx * 100)}%"></i></div></div>`;
   let h = `<div></div><div class="wth">一斉射ダメージ</div><div class="wth">射程 m</div><div class="wth">弾速</div><div class="wth">旋回速度 °/秒</div><div class="wth">装填 秒(短いほど速い)</div>`;
-  const groups = [["砲", GUN_ORDER], ["ミサイル", MSL_ORDER], ["魚雷", TOR_ORDER.concat(["TF"])], [`艦載機(1機あたり ・ 装填=再出撃準備、撃墜時の再建は${REBUILD_T}秒)`, AIR_ORDER], ["超ド級の固定武装", ["CC", "EF"].filter(k => k === "CC" ? anySD() : !isSecret("sdB"))]];
+  const groups = [["砲", GUN_ORDER], ["ミサイル", MSL_ORDER.concat(["MA2", "MBs"])], ["魚雷", TOR_ORDER.concat(["TF"])], [`艦載機(1機あたり ・ 装填=再出撃準備、撃墜時の再建は${REBUILD_T}秒)`, AIR_ORDER], ["超ド級の固定武装", ["CC", "EF"].filter(k => k === "CC" ? anySD() : !isSecret("sdB"))]];
   for (const [gname, list] of groups) {
     if (!list.length) continue;
     h += `<div class="wgrp">${gname}</div>`;
@@ -2618,6 +2692,8 @@ document.getElementById("retryBtn").onclick = () => startGame(lastBattle);
 document.getElementById("hangarBtn").onclick = () => { document.getElementById("over").hidden = true; openHangar(); };
 function openHangar() {
   state = "menu";
+  document.getElementById("tut").hidden = true; if (G.tut) G.tut = null;
+  try { if (localStorage.getItem("salvo.tutDone")) { const b = document.getElementById("tutBtn"); b.classList.remove("new"); b.textContent = "チュートリアル"; } } catch (e) {}
   G.ships = []; G.shells = []; G.proj = []; G.planes = []; G.events = []; G.pegs = []; fx.length = 0; floaters.length = 0;
   fireHeld.gun = fireHeld.msl = fireHeld.tor = fireHeld.aa = false;
   document.getElementById("airPanel").hidden = true;
@@ -2810,6 +2886,138 @@ function startGame(battle) {
   document.getElementById("fieldRow").hidden = !p.field;
   const hint = document.getElementById("hint"); hint.hidden = false; hint.style.opacity = 1; hintHidden = false;
 }
+
+/* ---- tutorial: one control at a time, each step waits until you have done it ---- */
+const TUT_STEPS = [
+  { title: "移動", text: "海面を指した場所へ向かって進みます。黄色い目印のところまで行ってみよう。", keys: "PC: 海面をクリック(ドラッグで目的地を動かせる) ・ スマホ: 海面をタップ",
+    setup(p) { G.tut.pt = W < 760 ? { x: p.x + 130, y: p.y - 300 } : { x: p.x + 220, y: p.y + 240 }; },  // somewhere the instruction panel doesn't cover
+    done(p) { return Math.hypot(p.x - G.tut.pt.x, p.y - G.tut.pt.y) < 70; } },
+  { title: "ロックオン", text: "標的艦が現れた。ロックオンすると全部の砲がその艦を狙います(ロックしていない時は一番近い敵を自動で狙う)。", keys: "PC: 敵艦をクリック、または F キー ・ スマホ: 敵艦をタップ、または右下の「ロックオン」ボタン",
+    setup(p) { G.tut.pt = null; tutDummy(p); },
+    done(p) { return p.input.lock === G.tut.dummy; } },
+  { title: "砲撃", text: "砲を撃って標的艦に当ててみよう。砲身が敵の方を向いて射程に入ると撃てます。自動射撃が ON なら、撃てる時に勝手に撃ちます。", keys: "PC: Space(押しっぱなしで連射) ・ スマホ: FIRE ボタン ・ 自動射撃の切り替え: G",
+    setup() { const d = byId(G.tut.dummy); G.tut.hp0 = d ? d.hp : 0; },
+    done() { const d = byId(G.tut.dummy); return !d || d.hp < G.tut.hp0; } },
+  { title: "射撃モード", text: "「個別射撃」は準備できた砲から1門ずつ、「一斉射撃」は全部の砲がそろってから一度に撃ちます。一斉射撃の時は「散らばり」で弾の広がりを選べます(集束=1点に集める・標準・散布=横一列に広げて動く敵を捉える)。射撃モードを切り替えてみよう。", keys: "射撃モード: PC は Q ・ スマホは「射撃モード」ボタン ／ 散らばり: PC は E ・ スマホは「散らばり」ボタン(一斉射撃の時だけ)",
+    setup() { G.tut.m0 = salvoMode; },
+    done() { return salvoMode !== G.tut.m0; } },
+  { title: "ミサイル", text: "ミサイルを撃ってみよう。種類によって飛び方が違います(格納庫の武装表で確認できる)。", keys: "PC: 2 ・ スマホ: MSL ボタン",
+    setup() { G.tut.t0 = G.time; },
+    done(p) { return (p.lastFire.msl ?? -1) > G.tut.t0; } },
+  { title: "魚雷", text: "魚雷はまっすぐ水中を進みます。敵が進む先を狙うのがコツ。", keys: "PC: 3 ・ スマホ: TOR ボタン",
+    setup() { G.tut.t0 = G.time; },
+    done(p) { return (p.lastFire.tor ?? -1) > G.tut.t0; } },
+  { title: "回避", text: "標的艦が撃ち返してくる! 赤い輪は砲弾が落ちる場所。輪が縮みきる前に舵を切って、輪の外へ逃げよう(3回)。", keys: "目的地を横にずらすと素早く舵が切れる",
+    setup() { G.tut.vol = 0; G.tut.volT = 1.2; G.tut.hits = 0; },
+    tick(p, dt) {
+      const d = byId(G.tut.dummy); if (!d || !d.alive || G.tut.vol >= 3) return;
+      if ((G.tut.volT -= dt) > 0) return;
+      G.tut.vol++; G.tut.volT = 3.2;
+      const T = 2.4, tx = p.x + p.evx * T * 0.9, ty = p.y + p.evy * T * 0.9;
+      for (let i = 0; i < 3; i++) G.shells.push({ owner: d.id, team: 1, sx: d.x, sy: d.y, tx: tx + gauss() * 14, ty: ty + gauss() * 14, T, t: 0, dmg: 8, small: false, big: false });
+    },
+    done() { return G.tut.vol >= 3 && !G.shells.some(s => s.team === 1); } },
+  { title: "緊急修理", text: "耐久が減ったら緊急修理で回復できます(1回の出撃で1回だけ)。耐久を減らしておいたので、使ってみよう。", keys: "PC: H ・ スマホ: 画面右上の「緊急修理」ボタン",
+    setup(p) { p.hp = Math.min(p.hp, p.c.hp * 0.45); p.repairs = 1; },
+    done(p) { return p.repairs === 0; } },
+  { title: "撃沈", text: "最後に標的艦を沈めよう。砲・ミサイル・魚雷を全部使ってOK。", keys: "沈めたらチュートリアル完了",
+    setup() { const d = byId(G.tut.dummy); if (d) { d.tutGuard = false; d.hp = d.c.hp; } },  // fresh target for the finale
+    done() { const d = byId(G.tut.dummy); return !d || !d.alive; } },
+];
+function tutDummy(p) {
+  const a = p.h, x = clamp(p.x + Math.cos(a) * 620, -WORLD + 200, WORLD - 200), y = clamp(p.y + Math.sin(a) * 620, -WORLD + 200, WORLD - 200);
+  const d = addShip(buildShip("frigate", defaultLoadout("frigate"), 1, x, y, a + Math.PI / 2));
+  d.c = Object.assign({}, d.c, { name: "標的艦", hp: 260 }); d.hp = 260; d.tutGuard = true; d.lastHit = -99;  // can't be sunk before the last step
+  for (const m of d.mounts) m.off = true;  // unarmed: the return fire in the 回避 step is scripted
+  G.tut.dummy = d.id;
+}
+function startTutorial() {
+  const keep = [selCls, selLoad, playMode];
+  selCls = "ddB"; selLoad = defaultLoadout("ddB"); playMode = "free";
+  startGame(false);
+  [selCls, selLoad, playMode] = keep;
+  G.mode = "tutorial"; G.diff = "normal";
+  G.ships = G.ships.filter(s => s.team === 0);  // no free-play enemy
+  G.tut = { i: -1, okT: 0 };
+  document.getElementById("hint").hidden = true;
+  document.getElementById("afPlayBtn").hidden = false; refreshAfBtn();
+  tutNext();
+}
+function tutNext() {
+  const T = G.tut, p = byId(G.playerId); if (!T || !p) return;
+  T.i++; T.okT = 0;
+  const el = document.getElementById("tut"); el.hidden = false; el.classList.remove("ok");
+  if (T.i >= TUT_STEPS.length) {
+    try { localStorage.setItem("salvo.tutDone", "1"); } catch (e) {}
+    document.getElementById("tutStep").textContent = "チュートリアル";
+    document.getElementById("tutTitle").textContent = "完了!"; el.classList.add("ok");
+    document.getElementById("tutText").textContent = "基本操作はこれでばっちり。ミッションで実戦に出よう。空母を使う時の航空隊の操作など、艦ごとの特別な操作はその艦を選んだ時に画面の下に出ます。";
+    document.getElementById("tutKeys").textContent = "「終了」で格納庫へ戻る";
+    document.getElementById("tutSkip").hidden = true;
+    return;
+  }
+  const S = TUT_STEPS[T.i];
+  document.getElementById("tutSkip").hidden = false;
+  document.getElementById("tutStep").textContent = `チュートリアル ${T.i + 1} / ${TUT_STEPS.length}`;
+  document.getElementById("tutTitle").textContent = S.title;
+  document.getElementById("tutText").textContent = S.text;
+  document.getElementById("tutKeys").textContent = S.keys;
+  if (S.setup) S.setup(p);
+}
+function updateTutorial(dt) {
+  const T = G.tut; if (!T || G.mode !== "tutorial" || T.i >= TUT_STEPS.length) return;
+  const p = byId(G.playerId); if (!p) return;
+  const S = TUT_STEPS[T.i];
+  if (T.i >= 1 && !byId(T.dummy) && T.i < TUT_STEPS.length - 1) tutDummy(p);  // sunk early: bring another
+  if (T.okT > 0) { if ((T.okT -= dt) <= 0) tutNext(); return; }
+  if (S.tick) S.tick(p, dt);
+  if (S.done(p)) { T.okT = 0.9; const el = document.getElementById("tut"); el.classList.add("ok"); document.getElementById("tutTitle").textContent = S.title + " ・ OK!"; }
+}
+function drawTutorial() {
+  const T = G.tut; if (!T || G.mode !== "tutorial" || !T.pt) return;
+  const k = 0.5 + 0.5 * Math.sin(G.time * 5);
+  ctx.strokeStyle = `rgba(255,210,122,${0.5 + 0.4 * k})`; ctx.lineWidth = 3 / zoom;
+  ctx.beginPath(); ctx.arc(T.pt.x, T.pt.y, 55 + 10 * k, 0, TAU); ctx.stroke();
+  ctx.fillStyle = "rgba(255,210,122,0.18)"; ctx.beginPath(); ctx.arc(T.pt.x, T.pt.y, 55, 0, TAU); ctx.fill();
+  ctx.fillStyle = "#ffd27a"; ctx.font = `bold ${13 / zoom}px "Zen Kaku Gothic New", sans-serif`; ctx.textAlign = "center"; ctx.fillText("ここへ移動", T.pt.x, T.pt.y - 70); ctx.textAlign = "start";
+}
+document.getElementById("tutBtn").onclick = () => startTutorial();
+document.getElementById("tutSkip").onclick = e => { e.stopPropagation(); tutNext(); };
+document.getElementById("tutEnd").onclick = e => { e.stopPropagation(); openHangar(); };
+for (const id of ["tut"]) document.getElementById(id).addEventListener("pointerdown", e => e.stopPropagation());
+try { if (!localStorage.getItem("salvo.tutDone")) { const b = document.getElementById("tutBtn"); b.classList.add("new"); b.textContent = "チュートリアル(はじめての方へ)"; } } catch (e) {}
+
+/* ---- progress reset: two warnings before anything is deleted ---- */
+function resetDialog(step, scope) {
+  const ov = document.getElementById("resetOv"), box = document.getElementById("resetBtns"), dn = DIFF[progDiff].name;
+  const btn = (txt, cls, fn) => { const b = document.createElement("button"); b.className = "btn " + cls; b.textContent = txt; b.onclick = fn; box.appendChild(b); return b; };
+  box.innerHTML = ""; ov.hidden = false;
+  const close = () => { ov.hidden = true; };
+  if (step === 1) {
+    document.getElementById("resetHead").textContent = "警告 1 / 2";
+    document.getElementById("resetMsg").textContent = `進捗をリセットすると、クリアしたミッション・解放した艦と武装・鹵獲した超ド級がなくなり、最初からやり直しになります。どの範囲を消しますか?`;
+    btn(`${dn}だけ`, "danger", () => resetDialog(2, "one"));
+    btn("全難易度", "danger", () => resetDialog(2, "all"));
+    btn("やめる", "ghost", close).focus();
+  } else {
+    const what = scope === "all" ? "イージー・ノーマル・ハードすべて" : dn;
+    document.getElementById("resetHead").textContent = "最終警告 2 / 2";
+    document.getElementById("resetMsg").textContent = `本当に「${what}」の進捗を消しますか? この操作は元に戻せません。`;
+    btn("リセットする", "danger", () => {
+      const ds = scope === "all" ? ["easy", "normal", "hard"] : [progDiff];
+      for (const d of ds) { PROG.by[d] = 0; PROG.sdBy[d] = {}; }
+      if (scope === "all") PROG.vet = null;
+      saveProg();
+      selMission = 0; refreshHangar(); saveSel();
+      box.innerHTML = "";
+      document.getElementById("resetHead").textContent = "リセット完了";
+      document.getElementById("resetMsg").textContent = `「${what}」の進捗を消しました。`;
+      btn("OK", "", close).focus();
+    });
+    btn("やめる", "ghost", close).focus();
+  }
+}
+document.getElementById("resetBtn").onclick = () => resetDialog(1);
 
 function showFail(msg) {  // mission lost without the player sinking (M11: the capital was hit)
   if (state !== "play" && state !== "dying") return;
@@ -3106,6 +3314,7 @@ function playSfx(ev) {
     case "hit": if (sfxGate("hit", 50)) sfx.boom(false, v * (ev.big ? 1 : 0.6)); break;
     case "sunk": case "bigblast": case "shieldBreak": sfx.boom(true, v); break;
     case "pulse": case "capitalHit": sfx.boom(true, 1); break;
+    case "ciwsSpin": if (sfxGate("ciws", 120)) sfxTone(SFX.ctx.currentTime, 1.0, 0.18 * v, "sawtooth", 120, 900); break;
     case "ballHit": if (sfxGate("ball", 60)) sfx.boom(false, v); break;
     case "laser": if (sfxGate("laser", 100)) { sfxTone(SFX.ctx.currentTime, 1.4, 0.35 * v, "sawtooth", 180, 90); sfxNoise(SFX.ctx.currentTime, 1.3, 0.25 * v, "bandpass", 2400, 900, 3); } break;
     case "reflect": if (sfxGate("refl", 60)) sfxTone(SFX.ctx.currentTime, 0.15, 0.2 * v, "triangle", 500, 1400); break;
@@ -3355,6 +3564,7 @@ function frame(now) {
     }
     handleEvents();
     updateComm(dt);
+    if (G.mode === "tutorial") updateTutorial(dt);
     const p = byId(G.playerId);
     if ((!p || !p.alive) && state === "play") { state = "dying"; deadT = 0; if (cine) endCine(false); }
     if (state === "dying") {
@@ -3496,6 +3706,28 @@ function drawMount(s, m, enemy, isPlayer) {
   const dark = enemy ? "#1a0f0e" : "#2b3a41", mid = enemy ? "#7a3e33" : "#eef3f5", edge = enemy ? "#2a1715" : "#4d606a", light = enemy ? "#8e4a3c" : "#9fb2bb";
   ctx.lineWidth = 1.1; ctx.lineCap = "round";
   if (w.kind === "field") { ctx.restore(); return; }
+  if (w.mg) {  // machine cannons: open pedestal mounts with thin barrels, not a turret
+    ctx.rotate(m.a - s.h);
+    const bl = w.barrel * (1 - m.recoil * 0.15);
+    if (w.ciws) {  // ファランクス: white radome on a drum, short gatling cluster
+      ctx.fillStyle = mid; ctx.strokeStyle = edge;
+      rrect(-6.5, -4.5, 9, 9, 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(-4, 0, 4.8, Math.PI / 2, Math.PI * 1.5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = dark; ctx.fillRect(2.5, -2.2, 2, 4.4);
+      const spin = m.px && m.px.st === "fire" ? G.time * 40 : m.px && m.px.st === "spin" ? G.time * 15 : 0;
+      ctx.strokeStyle = dark; ctx.lineWidth = 0.9;
+      for (let i = 0; i < 3; i++) { const o = Math.sin(spin + i * 2.1) * 1.3; ctx.beginPath(); ctx.moveTo(4.5, o); ctx.lineTo(bl, o); ctx.stroke(); }
+    } else {
+      ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, TAU); ctx.fill();  // pedestal
+      const n = w.barrels, gap = 1.7;
+      ctx.strokeStyle = dark; ctx.lineWidth = 1.1;
+      for (let b = 0; b < n; b++) { const y = (b - (n - 1) / 2) * gap; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(bl, y); ctx.stroke(); }
+      ctx.strokeStyle = mid; ctx.lineWidth = 1.6;  // curved gun shield
+      ctx.beginPath(); ctx.arc(1, 0, 4.2 + (n - 1) * 0.8, -1.1, 1.1); ctx.stroke();
+      ctx.fillStyle = light; ctx.fillRect(-3.6, 2.4 + (n - 1) * 0.6, 3, 2.2);  // ammo box
+    }
+    ctx.restore(); return;
+  }
   if (w.kind === "shell") {
     ctx.rotate(m.a - s.h);
     const bl = w.barrel * (1 - m.recoil * 0.22);
@@ -3522,9 +3754,25 @@ function drawMount(s, m, enemy, isPlayer) {
   } else if (w.kind === "ma") {
     ctx.rotate(m.a - s.h);
     ctx.fillStyle = mid; ctx.strokeStyle = edge;
-    rrect(-6, -6, 12, 12, 2.5); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = dark;
-    for (const [x, y] of [[-2.5, -2.5], [2.5, -2.5], [-2.5, 2.5], [2.5, 2.5]]) { ctx.beginPath(); ctx.arc(x + 1, y, 1.6, 0, TAU); ctx.fill(); }
+    if (w.count === 2) {  // the boat's 2-cell pod
+      rrect(-6, -4, 12, 8, 2.5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = dark;
+      for (const [x, y] of [[-2.5, 0], [2.5, 0]]) { ctx.beginPath(); ctx.arc(x + 1, y, 1.6, 0, TAU); ctx.fill(); }
+    } else {
+      rrect(-6, -6, 12, 12, 2.5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = dark;
+      for (const [x, y] of [[-2.5, -2.5], [2.5, -2.5], [-2.5, 2.5], [2.5, 2.5]]) { ctx.beginPath(); ctx.arc(x + 1, y, 1.6, 0, TAU); ctx.fill(); }
+    }
+  } else if (w.rpg) {  // ミサイルB(小型): a shoulder-launcher-style tube with the warhead poking out while loaded
+    // fires along the hull like ミサイルB, so the tube is fixed facing forward
+    ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(-1, 0, 3, 0, TAU); ctx.fill();
+    ctx.fillStyle = enemy ? "#5d4a2c" : "#6f7c56"; ctx.strokeStyle = edge; ctx.lineWidth = 0.9;
+    ctx.fillRect(-8, -1.8, 15, 3.6); ctx.strokeRect(-8, -1.8, 15, 3.6);
+    ctx.fillStyle = dark; ctx.fillRect(-9.5, -2.4, 2, 4.8);  // rear flare
+    if (m.cd < 1.5) {  // loaded: the warhead sticks out the front
+      ctx.fillStyle = enemy ? "#3a2c1a" : "#4a5536";
+      ctx.beginPath(); ctx.moveTo(7, -1.6); ctx.lineTo(9.5, -3); ctx.lineTo(14, 0); ctx.lineTo(9.5, 3); ctx.lineTo(7, 1.6); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
   } else if (w.kind === "mb" || w.kind === "mc" || w.kind === "md") {
     ctx.fillStyle = mid; ctx.strokeStyle = edge;
     rrect(-7, -5, 14, 10, 1.5); ctx.fill(); ctx.stroke();
@@ -3900,7 +4148,11 @@ function drawProj(p) {
       const sc = pre ? 0.7 + 0.6 * (pr.t / pr.w.delay) : 1;
       ctx.scale(sc, sc);
       if (!pre) { ctx.strokeStyle = "rgba(255,240,200,0.7)"; ctx.lineWidth = 2 / zoom; ctx.beginPath(); ctx.moveTo(-20, 0); ctx.lineTo(0, 0); ctx.stroke(); }
-      ctx.fillStyle = mine ? "#eef3f5" : "#ffb08a"; ctx.fillRect(-5, -1.6, 10, 3.2);
+      if (pr.w.rpg) {  // RPG-style rocket: thin body, fat cone warhead, little fins
+        ctx.fillStyle = mine ? "#cdd6c0" : "#d9a080"; ctx.fillRect(-5, -1, 6, 2);
+        ctx.fillStyle = mine ? "#6f7c56" : "#7a3e33"; ctx.beginPath(); ctx.moveTo(1, -1.2); ctx.lineTo(3, -2.6); ctx.lineTo(7.5, 0); ctx.lineTo(3, 2.6); ctx.lineTo(1, 1.2); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-5, -1); ctx.lineTo(-7, -3); ctx.lineTo(-4, -1); ctx.moveTo(-5, 1); ctx.lineTo(-7, 3); ctx.lineTo(-4, 1); ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 0.8; ctx.stroke();
+      } else { ctx.fillStyle = mine ? "#eef3f5" : "#ffb08a"; ctx.fillRect(-5, -1.6, 10, 3.2); }
     } else if (pr.k === "md") {
       if (pr.t >= pr.delay) {
         ctx.rotate(pr.a); const sc = pr.z < 1 ? 0.6 + 0.5 * pr.z : 1; ctx.scale(sc, sc);
@@ -4126,6 +4378,23 @@ function drawCharges(p) {  // railgun firing lines while charging, visible to ev
     }
   }
 }
+function drawCiws(p) {  // ファランクス: spin-up warning ring (fills in 1 s), firing flicker, cooling dim ring
+  for (const s of G.ships) if (s.alive) for (const m of s.mounts) {
+    const P = m.px; if (!P || P.st === "idle") continue;
+    const mine = p && s.team === p.team, mp = mountPos(s, m), col = mine ? "120,230,255" : "255,90,60";
+    if (P.st === "spin") {
+      const k = 1 - P.t / m.w.spin;
+      ctx.strokeStyle = `rgba(${col},0.35)`; ctx.lineWidth = 3 / zoom; ctx.beginPath(); ctx.arc(mp.x, mp.y, 26, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = `rgba(${col},${Math.sin(G.time * 30) > 0 ? 1 : 0.6})`; ctx.lineWidth = 4 / zoom; ctx.beginPath(); ctx.arc(mp.x, mp.y, 26, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+      ctx.fillStyle = `rgba(${col},1)`; ctx.font = `bold ${12 / zoom}px "Zen Kaku Gothic New", sans-serif`; ctx.textAlign = "center";
+      ctx.fillText(mine ? "CIWS 回転中" : "⚠ CIWS", mp.x, mp.y - 34); ctx.textAlign = "start";
+    } else if (P.st === "fire") {
+      ctx.strokeStyle = `rgba(${col},${0.4 + 0.4 * Math.random()})`; ctx.lineWidth = 2 / zoom; ctx.beginPath(); ctx.arc(mp.x, mp.y, 20 + Math.random() * 4, 0, TAU); ctx.stroke();
+    } else {
+      ctx.strokeStyle = "rgba(200,210,215,0.3)"; ctx.lineWidth = 2 / zoom; ctx.beginPath(); ctx.arc(mp.x, mp.y, 20, 0, TAU * (1 - P.t / m.w.coolT)); ctx.stroke();
+    }
+  }
+}
 function drawBall(pl, p) {  // 来訪艇's iron ball: a spiked sphere bouncing across the sea (shadow on the water, ball up in the air)
   const mine = p && pl.team === p.team, r = 15 + pl.alt * 6, hz = pl.alt * 40;
   ctx.fillStyle = `rgba(0,0,0,${0.35 - pl.alt * 0.12})`; ctx.beginPath(); ctx.ellipse(pl.x + hz * 0.3, pl.y + hz * 0.45, 15, 11, 0, 0, TAU); ctx.fill();
@@ -4152,6 +4421,7 @@ function render(t) {
   if (state === "menu") return;
   worldTransform();
   drawBound();
+  drawTutorial();
   drawFx(0);
   for (const s of G.ships) drawRadar(s);
   for (const s of G.ships) if (s.c.reflect) drawReflect(s);
@@ -4160,6 +4430,7 @@ function render(t) {
   drawCapitalCharge(t);
   for (const s of G.ships) if (s.alive && s.field) drawField(s, p, t);
   drawCharges(p);
+  drawCiws(p);
   drawPlayerOverlay(p, t);
   for (const s of G.ships) if (!s.alive) drawShip(s, false);
   for (const s of G.ships) if (s.alive) drawShip(s, s.id === G.playerId);
@@ -4274,7 +4545,7 @@ function updateHud() {
       const a = gb.arcs[i]; if (!a) return;
       const prog = 1 - m.cd / m.w.reload;
       a.setAttribute("stroke-dasharray", `${(clamp(prog, 0, 1) * (gb.seg - 1.6)).toFixed(2)} 100`);
-      const ready = m.cd <= 0 && m.aligned && m.inRange && (!salvoMode || gateOpen || m.w === WEAPONS.AC);
+      const ready = m.cd <= 0 && m.aligned && m.inRange && (!salvoMode || gateOpen || m.w.mg);
       if (ready) anyFire = true;
       a.setAttribute("stroke", m.cd > 0 ? "#5d6f78" : ready ? "#5fd6c3" : "#ffd27a");
     });
